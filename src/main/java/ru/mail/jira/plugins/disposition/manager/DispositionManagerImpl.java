@@ -96,15 +96,6 @@ public class DispositionManagerImpl implements DispositionManager {
 
     @Override
     public void setDisposition(Issue issue, Double value) throws JqlParseException, SearchException {
-        /*
-        1. Проверить, что таск входит в Jql запрос
-        2. Проверить наличие другого таска с таким же value
-           + Если есть: сдвинуть ВСЕ таски от value до max_vaule
-        3. Установить значение таска
-        4. Переиндексить таск
-
-         */
-
         User user = ComponentManager.getInstance().getJiraAuthenticationContext().getLoggedInUser();
 
         CustomField field = getCustomFieldByIssueAndType(IssueDispositionCF.class, issue);
@@ -136,37 +127,21 @@ public class DispositionManagerImpl implements DispositionManager {
         updateValue(field, prevValue, value, issue, true);
     }
 
-
     @Override
     public void setDisposition(@Nullable Issue above, @NotNull Issue dragged, @Nullable Issue below) throws SearchException, JqlParseException {
-
-        /*
-            o---- [1]
-            o---- [2] ___       [2], [??], [3]
-            o---- [3]    |
-            o---- [4]    |
-            x---- [5] --/
-
-            При перемещении таска он попадает в промежуток между двумя другими.
-            Задача - определить новое расположение таска и сдвинуть другие задачи. если это необходимо.
-
-
-         *
-         */
-
         User user = ComponentManager.getInstance().getJiraAuthenticationContext().getLoggedInUser();
 
-        if (null == above && null == below){
+        if (null == above && null == below) {
             log.error("High and low issues can't be null at the same time!");
             return;
         }
 
-        if (null != above && !isIssueInJQL(JQL_QUERY, above, user)){
+        if (null != above && !isIssueInJQL(JQL_QUERY, above, user)) {
             log.warn("High issue must belong to configured jql query!");
             return;
         }
 
-        if (null != below && !isIssueInJQL(JQL_QUERY, below, user)){
+        if (null != below && !isIssueInJQL(JQL_QUERY, below, user)) {
             log.warn("Low issue must belong to configured jql query!");
             return;
         }
@@ -197,20 +172,19 @@ public class DispositionManagerImpl implements DispositionManager {
 
         @Nullable
         Long average = null;
-        if (null != aboveValue && null != belowValue){
+        if (null != aboveValue && null != belowValue) {
             average = getAverage(aboveValue, belowValue);
         }
 
         if (null == average) {
-            if ( (null != draggedValue && null != aboveValue && draggedValue < aboveValue) ) {
+            if ((null != draggedValue && null != aboveValue && draggedValue < aboveValue)) {
                 shiftIssuesUp(JQL_QUERY, aboveValue, field, user, dragged);
                 updateValue(field, draggedValue, aboveValue, dragged, true);
             } else {
-                if (null != belowValue){
+                if (null != belowValue) {
                     shiftIssuesDown(JQL_QUERY, belowValue, field, user, dragged);
                     updateValue(field, draggedValue, belowValue, dragged, true);
-                }
-                else {
+                } else {
                     updateValue(field, draggedValue, aboveValue + DISPOSITION_STEP, dragged, true);
                 }
             }
@@ -240,7 +214,6 @@ public class DispositionManagerImpl implements DispositionManager {
         return searchProvider.searchCount(jqlQueryBuilder.buildQuery(), user) == 1;
     }
 
-
     /**
      * Check if disposition with current value already exists
      *
@@ -260,7 +233,6 @@ public class DispositionManagerImpl implements DispositionManager {
         return searchProvider.searchCount(jqlQueryBuilder.buildQuery(), user) == 1;
     }
 
-
     /**
      * Get all custom fields of specified type for issue
      *
@@ -269,6 +241,7 @@ public class DispositionManagerImpl implements DispositionManager {
      * @return - collection of founded fields
      */
     @NotNull
+    @SuppressWarnings("unused")
     private Collection<CustomField> getCustomFieldsByIssueAndType(@NotNull Class<?> type, @Nullable Issue issue) {
         Set<CustomField> result = new TreeSet<CustomField>();
         Collection<CustomField> fields = (null == issue) ?
@@ -281,7 +254,6 @@ public class DispositionManagerImpl implements DispositionManager {
         }
         return result;
     }
-
 
     /**
      * Get first custom field of specified type for issue
@@ -304,6 +276,18 @@ public class DispositionManagerImpl implements DispositionManager {
         return null;
     }
 
+    /**
+     * Shift issues up/down - change disposition in turn
+     *
+     * @param jql          - query, used to get list of issues
+     * @param startValue   - value of disposition field, from which we are starting shifting
+     * @param field        - disposition custom field
+     * @param user         - searcher
+     * @param currentIssue - issue, currently moved - should be skipped from query
+     * @param shiftValue   - direction of shifting (up/down)
+     * @throws JqlParseException
+     * @throws SearchException
+     */
     private void shiftIssues(@NotNull String jql, @NotNull Double startValue, @NotNull CustomField field, @NotNull User user, @NotNull Issue currentIssue, int shiftValue) throws JqlParseException, SearchException {
 
         Query query = jqlQueryParser.parseQuery(jql);
@@ -323,9 +307,7 @@ public class DispositionManagerImpl implements DispositionManager {
             return;
         }
 
-
         Collection<Issue> issues = new LinkedHashSet<Issue>();
-
         Issue prevIssue = null;
 
         // search for space in minimum 2, so that we can increase other issues order
@@ -355,11 +337,32 @@ public class DispositionManagerImpl implements DispositionManager {
         }
     }
 
-
+    /**
+     * Shift issues down - change disposition in turn
+     *
+     * @param jql          - query, used to get list of issues
+     * @param startValue   - value of disposition field, from which we are starting shifting
+     * @param field        - disposition custom field
+     * @param user         - searcher
+     * @param currentIssue - issue, currently moved - should be skipped from query
+     * @throws JqlParseException
+     * @throws SearchException
+     */
     private void shiftIssuesDown(@NotNull String jql, @NotNull Double startValue, @NotNull CustomField field, @NotNull User user, @NotNull Issue currentIssue) throws JqlParseException, SearchException {
         shiftIssues(jql, startValue, field, user, currentIssue, SHIFT_DOWN);
     }
 
+    /**
+     * Shift issues up - change disposition in turn
+     *
+     * @param jql          - query, used to get list of issues
+     * @param startValue   - value of disposition field, from which we are starting shifting
+     * @param field        - disposition custom field
+     * @param user         - searcher
+     * @param currentIssue - issue, currently moved - should be skipped from query
+     * @throws JqlParseException
+     * @throws SearchException
+     */
     private void shiftIssuesUp(@NotNull String jql, @NotNull Double startValue, @NotNull CustomField field, @NotNull User user, @NotNull Issue currentIssue) throws JqlParseException, SearchException {
         shiftIssues(jql, startValue, field, user, currentIssue, SHIFT_UP);
     }
@@ -381,14 +384,16 @@ public class DispositionManagerImpl implements DispositionManager {
     }
 
     /**
-     * @param customField
-     * @param previousOrder
-     * @param newDisposition
-     * @param issue
-     * @param reindex
+     * Update custom field value for current issue
+     *
+     * @param customField - custom field to be updated
+     * @param prevValue   - previous value
+     * @param newValue    - new value
+     * @param issue       - issue to be changed
+     * @param reindex     - should the issue be reindexed
      */
-    private void updateValue(CustomField customField, Double previousOrder, Double newDisposition, Issue issue, boolean reindex) {
-        customField.updateValue(null, issue, new ModifiedValue(previousOrder, newDisposition), new DefaultIssueChangeHolder());
+    private void updateValue(@NotNull CustomField customField, @Nullable Double prevValue, @Nullable Double newValue, @NotNull Issue issue, boolean reindex) {
+        customField.updateValue(null, issue, new ModifiedValue(prevValue, newValue), new DefaultIssueChangeHolder());
         if (reindex) {
             indexIssue(issue);
         }
@@ -396,9 +401,11 @@ public class DispositionManagerImpl implements DispositionManager {
 
 
     /**
-     * @param issue
+     * Reindex issue (Lucene)
+     *
+     * @param issue - issue to be reindexed
      */
-    private void indexIssue(Issue issue) {
+    private void indexIssue(@NotNull Issue issue) {
         try {
             boolean oldValue = ImportUtils.isIndexIssues();
             ImportUtils.setIndexIssues(true);
@@ -411,10 +418,14 @@ public class DispositionManagerImpl implements DispositionManager {
     }
 
     /**
-     * @param clauses
-     * @return
+     * Recursively traverse all clauses to get list of them
+     *
+     * @param clauses - root clause
+     * @return - collection of clauses
      */
-    private Collection<String> clauseRecursion(Collection<Clause> clauses) {
+    @NotNull
+    @SuppressWarnings("unused")
+    private Collection<String> clauseRecursion(@NotNull Collection<Clause> clauses) {
 
         Collection<String> fields = new LinkedHashSet<String>();
 
@@ -430,6 +441,13 @@ public class DispositionManagerImpl implements DispositionManager {
     }
 
 
+    /**
+     * Replace all occurrences of 'currentUser()' to user
+     *
+     * @param jql  - jql query
+     * @param user - substitution value
+     * @return - jql query (without validation)
+     */
     @NotNull
     private String replaceCurrentUser(String jql, String user) {
         return jql.replaceAll(Pattern.quote("currentUser()"), user);
