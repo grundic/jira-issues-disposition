@@ -40,7 +40,7 @@ public class DispositionManagerImpl implements DispositionManager {
 
     public static final String JQL_QUERY = "assignee = currentUser() and resolution = Unresolved ORDER BY \"Order\", key";
 
-    public static final Double DISPOSITION_START = 0.0;
+    private static final Double DISPOSITION_START = 0.0;
     public static final Double DISPOSITION_STEP = 50.0;
 
     private static final int SHIFT_UP = -1;
