@@ -19,9 +19,9 @@ AJS.toInit(function() {
         update: function(event, ui) {
             //AJS.$(this).sortable('cancel');
 
-            var high = AJS.$(ui.item).prev().data('issuekey');
+            var high = AJS.$(ui.item).prev().data('issuekey') || '';
             var dragged = AJS.$(ui.item).data('issuekey');
-            var low = AJS.$(ui.item).next().data('issuekey');
+            var low = AJS.$(ui.item).next().data('issuekey') || '';
 
             var params = AJS.template("high={high}&dragged={dragged}&low={low}").fill({"high":high, "dragged":dragged, "low":low})
 

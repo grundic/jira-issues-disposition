@@ -19,6 +19,7 @@ import com.atlassian.jira.util.ImportUtils;
 import com.atlassian.jira.web.bean.PagerFilter;
 import com.atlassian.query.Query;
 import com.atlassian.query.clause.Clause;
+import com.atlassian.query.order.SortOrder;
 import org.apache.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -37,10 +38,13 @@ import java.util.regex.Pattern;
  */
 public class DispositionManagerImpl implements DispositionManager {
 
-    public static final String JQL_QUERY = "assignee = currentUser() and resolution = Unresolved ORDER BY \"Order\"";
+    public static final String JQL_QUERY = "assignee = currentUser() and resolution = Unresolved ORDER BY \"Order\", key";
 
     private static final Double DISPOSITION_START = 0.0;
-    private static final Double DISPOSITION_STEP = 50.0;
+    private static final Double DISPOSITION_STEP = 1.0;
+
+    private static final int SHIFT_UP = -1;
+    private static final int SHIFT_DOWN = 1;
 
     private static final Logger log = Logger.getLogger(DispositionManagerImpl.class);
 
@@ -119,13 +123,13 @@ public class DispositionManagerImpl implements DispositionManager {
 
         // if issue in not in configured Jql - return
         if (!isIssueInJQL(JQL_QUERY, issue, user)) {
-            log.warn(String.format("Issue %s in not in Jql '%s'", issue.getKey(), JQL_QUERY));
+            log.error(String.format("Issue %s in not in Jql '%s'!", issue.getKey(), JQL_QUERY));
             return;
         }
 
         // if some issue in query have the same disposition value - we have to shift other issues
         if (isDispositionInJQL(JQL_QUERY, value, field, user)) {
-            shiftIssues(JQL_QUERY, value, field, user, issue);
+            shiftIssuesDown(JQL_QUERY, value, field, user, issue);
         }
 
         // set value of our issue
@@ -134,7 +138,7 @@ public class DispositionManagerImpl implements DispositionManager {
 
 
     @Override
-    public void setDisposition(Issue above, Issue dragged, Issue below) throws SearchException, JqlParseException {
+    public void setDisposition(@Nullable Issue above, @NotNull Issue dragged, @Nullable Issue below) throws SearchException, JqlParseException {
 
         /*
             o---- [1]
@@ -152,11 +156,23 @@ public class DispositionManagerImpl implements DispositionManager {
 
         User user = ComponentManager.getInstance().getJiraAuthenticationContext().getLoggedInUser();
 
-        if (!isIssueInJQL(JQL_QUERY, above, user) ||
-                !isIssueInJQL(JQL_QUERY, dragged, user) ||
-                !isIssueInJQL(JQL_QUERY, below, user)) {
+        if (null == above && null == below){
+            log.error("High and low issues can't be null at the same time!");
+            return;
+        }
 
-            log.warn("All issues must belong to configured jql query!");
+        if (null != above && !isIssueInJQL(JQL_QUERY, above, user)){
+            log.warn("High issue must belong to configured jql query!");
+            return;
+        }
+
+        if (null != below && !isIssueInJQL(JQL_QUERY, below, user)){
+            log.warn("Low issue must belong to configured jql query!");
+            return;
+        }
+
+        if (!isIssueInJQL(JQL_QUERY, dragged, user)) {
+            log.warn("Dragged issue must belong to configured jql query!");
             return;
         }
 
@@ -170,21 +186,34 @@ public class DispositionManagerImpl implements DispositionManager {
         }
 
 
-        Double aboveValue = (Double) above.getCustomFieldValue(field);
+        Double aboveValue = (above != null) ? (Double) above.getCustomFieldValue(field) : null;
         Double draggedValue = (Double) dragged.getCustomFieldValue(field);
-        Double belowValue = (Double) below.getCustomFieldValue(field);
+        Double belowValue = (below != null) ? (Double) below.getCustomFieldValue(field) : null;
 
-        if (null == aboveValue || null == belowValue) {
+        if (null == aboveValue && null == belowValue) {
             log.warn("Both above and below issues should have initialized disposition values!");
             return;
         }
 
         @Nullable
-        Long average = getAverage(aboveValue, belowValue);
+        Long average = null;
+        if (null != aboveValue && null != belowValue){
+            average = getAverage(aboveValue, belowValue);
+        }
 
         if (null == average) {
-            shiftIssues(JQL_QUERY, belowValue, field, user, dragged);
-            updateValue(field, draggedValue, belowValue, dragged, true);
+            if ( (null != draggedValue && null != aboveValue && draggedValue < aboveValue) ) {
+                shiftIssuesUp(JQL_QUERY, aboveValue, field, user, dragged);
+                updateValue(field, draggedValue, aboveValue, dragged, true);
+            } else {
+                if (null != belowValue){
+                    shiftIssuesDown(JQL_QUERY, belowValue, field, user, dragged);
+                    updateValue(field, draggedValue, belowValue, dragged, true);
+                }
+                else {
+                    updateValue(field, draggedValue, aboveValue + DISPOSITION_STEP, dragged, true);
+                }
+            }
         } else {
             updateValue(field, draggedValue, (double) average, dragged, true);
         }
@@ -275,13 +304,19 @@ public class DispositionManagerImpl implements DispositionManager {
         return null;
     }
 
-    private void shiftIssues(@NotNull String jql, @NotNull Double startValue, @NotNull CustomField field, @NotNull User user, @NotNull Issue currentIssue) throws JqlParseException, SearchException {
+    private void shiftIssues(@NotNull String jql, @NotNull Double startValue, @NotNull CustomField field, @NotNull User user, @NotNull Issue currentIssue, int shiftValue) throws JqlParseException, SearchException {
 
         Query query = jqlQueryParser.parseQuery(jql);
         JqlQueryBuilder jqlQueryBuilder = JqlQueryBuilder.newBuilder(query);
-        jqlQueryBuilder.where().and().customField(field.getIdAsLong()).gtEq(startValue.toString()).and().not().issue(currentIssue.getKey());
 
-        jqlQueryBuilder.orderBy().add(field.getName());
+        if (shiftValue == SHIFT_DOWN) {
+            jqlQueryBuilder.where().and().customField(field.getIdAsLong()).gtEq(startValue.toString()).and().not().issue(currentIssue.getKey());
+            jqlQueryBuilder.orderBy().add(field.getName(), SortOrder.ASC);
+        } else {
+            jqlQueryBuilder.where().and().customField(field.getIdAsLong()).ltEq(startValue.toString()).and().not().issue(currentIssue.getKey());
+            jqlQueryBuilder.orderBy().add(field.getName(), SortOrder.DESC, true);
+        }
+
 
         SearchResults searchResults = searchProvider.search(jqlQueryBuilder.buildQuery(), user, PagerFilter.getUnlimitedFilter());
         if (null == searchResults) {
@@ -316,10 +351,18 @@ public class DispositionManagerImpl implements DispositionManager {
         // increase disposition of close (near) issues by 1
         for (Issue issue : issues) {
             Double disposition = (Double) issue.getCustomFieldValue(field);
-            updateValue(field, disposition, disposition + 1, issue, true);
+            updateValue(field, disposition, disposition + shiftValue, issue, true);
         }
     }
 
+
+    private void shiftIssuesDown(@NotNull String jql, @NotNull Double startValue, @NotNull CustomField field, @NotNull User user, @NotNull Issue currentIssue) throws JqlParseException, SearchException {
+        shiftIssues(jql, startValue, field, user, currentIssue, SHIFT_DOWN);
+    }
+
+    private void shiftIssuesUp(@NotNull String jql, @NotNull Double startValue, @NotNull CustomField field, @NotNull User user, @NotNull Issue currentIssue) throws JqlParseException, SearchException {
+        shiftIssues(jql, startValue, field, user, currentIssue, SHIFT_UP);
+    }
 
     /**
      * Get average for two values
@@ -331,7 +374,7 @@ public class DispositionManagerImpl implements DispositionManager {
     @Nullable
     private Long getAverage(@NotNull Double first, @NotNull Double second) {
         // check for space between values
-        if (second - first >= 2) {
+        if (Math.abs(second - first) >= 2) {
             return Math.round((second + first) / 2);
         }
         return null;
