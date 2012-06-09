@@ -40,8 +40,8 @@ public class DispositionManagerImpl implements DispositionManager {
 
     public static final String JQL_QUERY = "assignee = currentUser() and resolution = Unresolved ORDER BY \"Order\", key";
 
-    private static final Double DISPOSITION_START = 0.0;
-    private static final Double DISPOSITION_STEP = 1.0;
+    public static final Double DISPOSITION_START = 0.0;
+    public static final Double DISPOSITION_STEP = 50.0;
 
     private static final int SHIFT_UP = -1;
     private static final int SHIFT_DOWN = 1;
@@ -65,7 +65,7 @@ public class DispositionManagerImpl implements DispositionManager {
     }
 
     @Override
-    public void resetDisposition(User userToBeReset) throws JqlParseException, SearchException {
+    public void resetDisposition(User userToBeReset, Double step) throws JqlParseException, SearchException {
 
         User user = ComponentManager.getInstance().getJiraAuthenticationContext().getLoggedInUser();
 
@@ -89,7 +89,7 @@ public class DispositionManagerImpl implements DispositionManager {
         for (Issue issue : searchResults.getIssues()) {
             Double prevValue = (Double) issue.getCustomFieldValue(field);
 
-            disposition += DISPOSITION_STEP;
+            disposition += step;
             updateValue(field, prevValue, disposition, issue, true);
         }
     }

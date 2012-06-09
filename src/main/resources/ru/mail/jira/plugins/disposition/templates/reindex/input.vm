@@ -1,25 +1,54 @@
 <html>
 <head>
     <meta name="decorator" content="panel-general">
-    <title>Edit order</title>
+    <title>${i18n.getText("ru.mail.jira.plugins.disposition.web.reindex.title")}</title>
 </head>
 <body>
 
 <form id="reindex-issues" class="aui" action="ResetIssuesDispositionAction.jspa" method="POST">
-    <h2>Select user to be reindexed</h2>
+    <h2>${i18n.getText("ru.mail.jira.plugins.disposition.web.reindex.description")}</h2>
 
 
-    <select data-container-class="long-field" data-user-type="assignee" data-show-dropdown-button="true"
-            class="single-user-picker custom-assignee-picker" name="assignee" id="assignee" style="display: none;"
-            multiple="">
-        <optgroup data-weight="0" label="Suggestions" id="assignee-group-suggested">
-            <option data-field-label="$remoteUser.name" data-field-text="$remoteUser.name" value="$remoteUser.name"
-                    selected="selected">$remoteUser.name
-            </option>
-        </optgroup>
-    </select>
+    <table >
+        <tbody>
+            <tr>
+                <td>
+                    <select data-container-class="long-field" data-user-type="assignee" data-show-dropdown-button="true"
+                            class="single-user-picker custom-assignee-picker" name="assignee" id="assignee" style="display: none;"
+                            multiple="">
+                        <optgroup data-weight="0" label="Suggestions" id="assignee-group-suggested">
+                            <option data-field-label="$remoteUser.name" data-field-text="$remoteUser.name" value="$remoteUser.name"
+                                    selected="selected">$remoteUser.name
+                            </option>
+                        </optgroup>
+                    </select>
+                    <div class="description">${i18n.getText("ru.mail.jira.plugins.disposition.web.reindex.user.description")}</div>
+                </td>
+            </tr>
 
-    <input class="button" type="submit" value="Reindex" id="reindex-btn">
+            <tr>
+                <td>
+                    <input type="text" id="step" name="step" #if ($step) value="$step" #end />
+                    <div class="description">${i18n.getText("ru.mail.jira.plugins.disposition.web.reindex.step.description")}</div>
+                </td>
+            </tr>
+
+            <tr>
+                <td>
+                    <input class="button" type="submit" value='${i18n.getText("ru.mail.jira.plugins.disposition.web.reindex.button.reindex")}' id="reindex-btn">
+                </td>
+            </tr>
+
+        </tbody>
+
+
+    </table>
+
+
+
+
+
+
 
 </form>
 

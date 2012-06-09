@@ -43,8 +43,8 @@
 
     <web-item key="reset-issues-disposition" name="Reset issues disposition Link" section="find_link/reset-issues-disposition-section"
               system="true" weight="10">
-        <label key="menu.issues.manage.reindex"/>
-        <tooltip key="menu.issues.manage.reindex.title"/>
+        <label key="ru.mail.jira.plugins.disposition.web.reindex.title"/>
+        <tooltip key="ru.mail.jira.plugins.disposition.web.reindex.tooltip"/>
         <link linkId="reset-issues-disposition-link">
             /secure/ResetIssuesDispositionAction!default.jspa
         </link>

@@ -31,9 +31,7 @@ AJS.toInit(function() {
                     console.log("Complete!");
                     JIRA.IssueNavigator.reload();
                 }
-
             });
-
         }
     }).disableSelection();
 });

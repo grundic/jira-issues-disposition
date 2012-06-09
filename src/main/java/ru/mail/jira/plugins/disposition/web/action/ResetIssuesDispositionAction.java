@@ -30,6 +30,8 @@ public class ResetIssuesDispositionAction extends JiraWebActionSupport {
 
     private String assignee;
 
+    private Double step = DispositionManagerImpl.DISPOSITION_STEP;
+
     public ResetIssuesDispositionAction(WebResourceManager webResourceManager, UserManager userManager, DispositionManager dispositionManager, SearchService searchService, JqlQueryParser jqlQueryParser, JiraBaseUrls jiraBaseUrls) {
         this.webResourceManager = webResourceManager;
         this.userManager = userManager;
@@ -50,7 +52,7 @@ public class ResetIssuesDispositionAction extends JiraWebActionSupport {
         User remoteUser = ComponentManager.getInstance().getJiraAuthenticationContext().getLoggedInUser();
         User assigneeUser = userManager.getUser(assignee);
         try {
-            dispositionManager.resetDisposition(assigneeUser);
+            dispositionManager.resetDisposition(assigneeUser, getStep());
         } catch (JqlParseException e) {
             e.printStackTrace();
             throw new RuntimeException(e);
@@ -74,11 +76,23 @@ public class ResetIssuesDispositionAction extends JiraWebActionSupport {
 
     /* --------------------------------------------------------------------------------------------------------------*/
 
+    @SuppressWarnings("unused")
     public String getAssignee() {
         return assignee;
     }
 
+    @SuppressWarnings("unused")
     public void setAssignee(String assignee) {
         this.assignee = assignee;
+    }
+
+    @SuppressWarnings("unused")
+    public Double getStep() {
+        return step;
+    }
+
+    @SuppressWarnings("unused")
+    public void setStep(Double step) {
+        this.step = step;
     }
 }

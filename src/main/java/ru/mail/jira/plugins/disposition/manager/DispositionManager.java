@@ -18,11 +18,13 @@ public interface DispositionManager {
 
 
     /**
-     * @param currentUser
+     * Reset disposition for all issues in configured Jql query for selected user
+     * @param currentUser - user, for whom reindex will be executed
+     * @param step - value between each issue
      * @throws JqlParseException
      * @throws SearchException
      */
-    public void resetDisposition(User currentUser) throws JqlParseException, SearchException;
+    public void resetDisposition(User currentUser, Double step) throws JqlParseException, SearchException;
 
 
     /**
