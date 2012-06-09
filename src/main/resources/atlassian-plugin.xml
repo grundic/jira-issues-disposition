@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<atlassian-plugin key="${project.groupId}.${project.artifactId}" name="${project.name}" plugins-version="2">
+    <plugin-info>
+        <description>${project.description}</description>
+        <version>${project.version}</version>
+        <vendor name="${project.organization.name}" url="${project.organization.url}"/>
+    </plugin-info>
+
+
+    <!-- Issue disposition custom field -->
+    <customfield-type name="IssueDisposition" i18n-name-key="issue-disposition-field.name"
+                      key="issue-disposition-field"
+                      class="ru.mail.jira.plugins.disposition.customfields.IssueDispositionCF">
+        <description key="issue-disposition-field.description">The My Custom Field Plugin</description>
+
+        <resource type="velocity" name="view" location="templates/plugins/fields/view/view-number.vm"/>
+        <resource type="velocity" name="column-view" location="templates/plugins/fields/view/view-number.vm"/>
+        <resource type="velocity" name="edit" location="templates/plugins/fields/edit/edit-number.vm"/>
+        <resource type="velocity" name="xml" location="templates/plugins/fields/xml/xml-number.vm"/>
+    </customfield-type>
+
+
+    <!-- Issue disposition custom field searcher -->
+    <customfield-searcher key="exactnumber" name="Number Searcher"
+                          i18n-name-key="admin.customfield.searcher.exactnumber.name"
+                          class="com.atlassian.jira.issue.customfields.searchers.ExactNumberSearcher">
+        <description key="admin.customfield.searcher.exactnumber.desc">Allow searching for a number which exactly
+            matches.
+        </description>
+
+        <resource type="velocity" name="search" location="templates/plugins/fields/edit-searcher/search-basictext.vm"/>
+        <resource type="velocity" name="view"
+                  location="templates/plugins/fields/view-searcher/view-searcher-basictext.vm"/>
+
+        <valid-customfield-type package="${project.groupId}.${project.artifactId}" key="issue-disposition-field"/>
+
+    </customfield-searcher>
+
+
+    <!-- Web stuff for resetting disposition of issues -->
+    <web-section key="reset-issues-disposition-section" name="Reset issues disposition" location="find_link" system="true" weight="90"/>
+
+    <web-item key="reset-issues-disposition" name="Reset issues disposition Link" section="find_link/reset-issues-disposition-section"
+              system="true" weight="10">
+        <label key="menu.issues.manage.reindex"/>
+        <tooltip key="menu.issues.manage.reindex.title"/>
+        <link linkId="reset-issues-disposition-link">
+            /secure/ResetIssuesDispositionAction!default.jspa
+        </link>
+    </web-item>
+
+    <webwork1 key="reset-issues-disposition-action" name="Reset issues disposition Action" class="java.lang.Object">
+        <actions>
+            <action name="ru.mail.jira.plugins.disposition.web.action.ResetIssuesDispositionAction"
+                    alias="ResetIssuesDispositionAction">
+                <view name="success">/ru/mail/jira/plugins/disposition/templates/reindex/input.vm</view>
+                <view name="input">/ru/mail/jira/plugins/disposition/templates/reindex/input.vm</view>
+            </action>
+        </actions>
+    </webwork1>
+
+    <web-resource key="init-user-picker" name="init-user-picker">
+        <resource type="download" name="initUserPicker.js" location="/ru/mail/jira/plugins/disposition/scripts/initUserPicker.js"/>
+    </web-resource>
+
+
+    <!-- Javascript Web Resources for Issue Disposition -->
+    <web-resource key="issue-disposition-context" name="issue-disposition-context">
+        <resource type="download" name="ijquery.ui.sortable.min.js"
+                  location="/ru/mail/jira/plugins/disposition/scripts/jquery/jquery.ui.sortable.min.js"/>
+        <resource type="download" name="initIssueSorter.js"
+                  location="/ru/mail/jira/plugins/disposition/scripts/initIssueSorter.js"/>
+
+        <context>atl.general</context>
+    </web-resource>
+
+
+    <!-- Internal component imports -->
+    <component key="issue-disposition-manager" name="issue-disposition-manager"
+               class="ru.mail.jira.plugins.disposition.manager.DispositionManagerImpl"/>
+
+    <!-- Rest resource -->
+    <rest key="issue-disposition-rest" path="/issue-disposition" version="1.0"
+          description="Provides REST resources for issue disposition"/>
+
+    <!-- Internalization resource -->
+    <resource type="i18n" name="i18n" location="ru/mail/jira/plugins/disposition/i18n/jira-issues-disposition"/>
+
+</atlassian-plugin>
