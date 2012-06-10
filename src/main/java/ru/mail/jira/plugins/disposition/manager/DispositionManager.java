@@ -10,6 +10,10 @@ import com.atlassian.crowd.embedded.api.User;
 import com.atlassian.jira.issue.Issue;
 import com.atlassian.jira.issue.search.SearchException;
 import com.atlassian.jira.jql.parser.JqlParseException;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
+import java.util.Collection;
 
 /**
  * Manager for disposition custom field
@@ -19,12 +23,14 @@ public interface DispositionManager {
 
     /**
      * Reset disposition for all issues in configured Jql query for selected user
+     *
      * @param currentUser - user, for whom reindex will be executed
      * @param step - value between each issue
+     * @param errors - container for errors
      * @throws JqlParseException
      * @throws SearchException
      */
-    public void resetDisposition(User currentUser, Double step) throws JqlParseException, SearchException;
+    public void resetDisposition(@NotNull User currentUser, @NotNull Double step, @NotNull Collection<String> errors) throws JqlParseException, SearchException;
 
 
     /**
@@ -32,8 +38,9 @@ public interface DispositionManager {
      *
      * @param issue - issue to be ordered
      * @param value - value for order
+     * @param errors - container for errors
      */
-    public void setDisposition(Issue issue, Double value) throws JqlParseException, SearchException;
+    public void setDisposition(@NotNull Issue issue, @NotNull Double value, @NotNull Collection<String> errors) throws JqlParseException, SearchException;
 
 
     /**
@@ -42,6 +49,7 @@ public interface DispositionManager {
      * @param above   - issue above current (should have higher order)
      * @param dragged - current issue
      * @param below   - issue below current (should have lower order)
+     * @param errors - container for errors
      */
-    public void setDisposition(Issue above, Issue dragged, Issue below) throws SearchException, JqlParseException;
+    public void setDisposition(@Nullable Issue above, @NotNull Issue dragged, @Nullable Issue below, @NotNull Collection<String> errors) throws SearchException, JqlParseException;
 }

@@ -65,7 +65,7 @@ public class DispositionManagerImpl implements DispositionManager {
     }
 
     @Override
-    public void resetDisposition(User userToBeReset, Double step) throws JqlParseException, SearchException {
+    public void resetDisposition(@NotNull User userToBeReset, @NotNull Double step, @NotNull Collection<String> errors) throws JqlParseException, SearchException {
 
         User user = ComponentManager.getInstance().getJiraAuthenticationContext().getLoggedInUser();
 
@@ -73,7 +73,7 @@ public class DispositionManagerImpl implements DispositionManager {
 
         CustomField field = getCustomFieldByIssueAndType(IssueDispositionCF.class, null);
         if (null == field) {
-            log.error("Can't find custom field object - is should be configured first!");
+            errors.add("Can't find custom field object - is should be configured first!");
             return;
         }
 
@@ -82,6 +82,7 @@ public class DispositionManagerImpl implements DispositionManager {
         SearchResults searchResults = searchProvider.search(query, user, PagerFilter.getUnlimitedFilter());
 
         if (null == searchResults) {
+            errors.add("Failed to search for issues - searchResults are null!");
             return;
         }
 
@@ -95,26 +96,26 @@ public class DispositionManagerImpl implements DispositionManager {
     }
 
     @Override
-    public void setDisposition(Issue issue, Double value) throws JqlParseException, SearchException {
+    public void setDisposition(@NotNull Issue issue, @NotNull Double value, @NotNull Collection<String> errors) throws JqlParseException, SearchException {
         User user = ComponentManager.getInstance().getJiraAuthenticationContext().getLoggedInUser();
 
         CustomField field = getCustomFieldByIssueAndType(IssueDispositionCF.class, issue);
         if (null == field) {
-            log.error(String.format("Can't find custom field object for issue %s!", issue.getKey()));
+            errors.add(String.format("Can't find custom field object for issue %s!", issue.getKey()));
             return;
         }
 
         Double prevValue = (Double) issue.getCustomFieldValue(field);
         // don't waste time for setting same value
         if (null != prevValue && prevValue.equals(value)) {
-            log.warn("Values are equal!");
+            errors.add("Old and new disposition values are equal!");
             return;
         }
 
 
         // if issue in not in configured Jql - return
         if (!isIssueInJQL(JQL_QUERY, issue, user)) {
-            log.error(String.format("Issue %s in not in Jql '%s'!", issue.getKey(), JQL_QUERY));
+            errors.add(String.format("Issue %s in not in Jql '%s'!", issue.getKey(), JQL_QUERY));
             return;
         }
 
@@ -128,26 +129,26 @@ public class DispositionManagerImpl implements DispositionManager {
     }
 
     @Override
-    public void setDisposition(@Nullable Issue above, @NotNull Issue dragged, @Nullable Issue below) throws SearchException, JqlParseException {
+    public void setDisposition(@Nullable Issue above, @NotNull Issue dragged, @Nullable Issue below, @NotNull Collection<String> errors) throws SearchException, JqlParseException {
         User user = ComponentManager.getInstance().getJiraAuthenticationContext().getLoggedInUser();
 
         if (null == above && null == below) {
-            log.error("High and low issues can't be null at the same time!");
+            errors.add("High and low issues can't be null at the same time!");
             return;
         }
 
         if (null != above && !isIssueInJQL(JQL_QUERY, above, user)) {
-            log.warn("High issue must belong to configured jql query!");
+            errors.add("High issue must belong to configured jql query!");
             return;
         }
 
         if (null != below && !isIssueInJQL(JQL_QUERY, below, user)) {
-            log.warn("Low issue must belong to configured jql query!");
+            errors.add("Low issue must belong to configured jql query!");
             return;
         }
 
         if (!isIssueInJQL(JQL_QUERY, dragged, user)) {
-            log.warn("Dragged issue must belong to configured jql query!");
+            errors.add("Dragged issue must belong to configured jql query!");
             return;
         }
 
@@ -156,7 +157,7 @@ public class DispositionManagerImpl implements DispositionManager {
         @Nullable
         CustomField field = getCustomFieldByIssueAndType(IssueDispositionCF.class, dragged);
         if (null == field) {
-            log.error(String.format("Can't find custom field object for issue %s!", dragged.getKey()));
+            errors.add(String.format("Can't find custom field object for issue %s!", dragged.getKey()));
             return;
         }
 
@@ -166,7 +167,7 @@ public class DispositionManagerImpl implements DispositionManager {
         Double belowValue = (below != null) ? (Double) below.getCustomFieldValue(field) : null;
 
         if (null == aboveValue && null == belowValue) {
-            log.warn("Both above and below issues should have initialized disposition values!");
+            errors.add("Both High and Low issues should have initialized disposition values!");
             return;
         }
 

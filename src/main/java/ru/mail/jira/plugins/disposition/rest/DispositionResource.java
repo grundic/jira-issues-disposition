@@ -5,8 +5,6 @@ import com.atlassian.jira.issue.IssueManager;
 import com.atlassian.jira.issue.search.SearchException;
 import com.atlassian.jira.jql.parser.JqlParseException;
 import com.atlassian.jira.jql.parser.JqlQueryParser;
-import com.atlassian.query.Query;
-import com.atlassian.query.clause.Clause;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import ru.mail.jira.plugins.disposition.manager.DispositionManager;
@@ -17,8 +15,10 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import java.util.ArrayList;
 import java.util.Collection;
-import java.util.LinkedHashSet;
+
+import static javax.ws.rs.core.Response.serverError;
 
 /**
  * User: g.chernyshev
@@ -55,14 +55,21 @@ public class DispositionResource {
 
         Issue issueObject = issueManager.getIssueObject(issue);
 
+        Collection<String> errors = new ArrayList<String>();
+
         try {
-            dispositionManager.setDisposition(issueObject, value);
+            dispositionManager.setDisposition(issueObject, value, errors);
         } catch (JqlParseException e) {
             e.printStackTrace();
             throw new RuntimeException(e);
         } catch (SearchException e) {
             e.printStackTrace();
             throw new RuntimeException(e);
+        }
+
+        if (errors.size() > 0) {
+
+            return serverError().build();
         }
 
         return null;
@@ -81,7 +88,7 @@ public class DispositionResource {
 
 
         try {
-            dispositionManager.setDisposition(highIssue, draggedIssue, lowIssue);
+            dispositionManager.setDisposition(highIssue, draggedIssue, lowIssue, null);
         } catch (SearchException e) {
             e.printStackTrace();
             throw new RuntimeException(e);
@@ -93,45 +100,27 @@ public class DispositionResource {
         return null;
     }
 
+    private Response badRequest(Collection<String> errors) {
+        return Response.status(Response.Status.BAD_REQUEST).
+                type(MediaType.APPLICATION_JSON).
+                entity(new ErrorListEntity(Response.Status.BAD_REQUEST, errors)).
+                build();
+    }
+
     @Path("/check")
     @GET
     public Response parseJqlQuery(@Nullable @QueryParam("q") final String q) {
-        if (null == q) {
-            return null;
-        }
 
-        Query query;
-        try {
-            query = jqlQueryParser.parseQuery(q);
-        } catch (JqlParseException e) {
-            e.printStackTrace();
-            throw new RuntimeException(e);
-        }
+        Collection<String> errors = new ArrayList<String>();
+        errors.add("Error-1");
+        errors.add("Error-2");
+        errors.add("Error-3");
+        errors.add("Error-4");
 
-        Collection<String> fields = clauseRecursion(query.getWhereClause().getClauses());
-
-        System.out.println("\n\n" + "-------------------------------------------------");
-        for (String field : fields) {
-            System.out.println(field);
-        }
-
-        return null;
-    }
-
-
-    private Collection<String> clauseRecursion(Collection<Clause> clauses) {
-
-        Collection<String> fields = new LinkedHashSet<String>();
-
-        for (Clause clause : clauses) {
-            if (clause.getClauses() != null && clause.getClauses().size() > 0) {
-                fields.addAll(clauseRecursion(clause.getClauses()));
-            } else {
-                fields.add(clause.getName());
-            }
-        }
-
-        return fields;
+        return Response.status(Response.Status.BAD_REQUEST).
+                type(MediaType.APPLICATION_JSON).
+                entity(new ErrorListEntity(Response.Status.BAD_REQUEST, errors)).
+                build();
     }
 
 }

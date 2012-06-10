@@ -52,7 +52,7 @@ public class ResetIssuesDispositionAction extends JiraWebActionSupport {
         User remoteUser = ComponentManager.getInstance().getJiraAuthenticationContext().getLoggedInUser();
         User assigneeUser = userManager.getUser(assignee);
         try {
-            dispositionManager.resetDisposition(assigneeUser, getStep());
+            dispositionManager.resetDisposition(assigneeUser, getStep(), null);
         } catch (JqlParseException e) {
             e.printStackTrace();
             throw new RuntimeException(e);

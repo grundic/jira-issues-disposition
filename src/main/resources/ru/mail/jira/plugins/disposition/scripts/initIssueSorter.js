@@ -17,7 +17,6 @@ AJS.toInit(function() {
         helper: helper,
 
         update: function(event, ui) {
-            //AJS.$(this).sortable('cancel');
 
             var high = AJS.$(ui.item).prev().data('issuekey') || '';
             var dragged = AJS.$(ui.item).data('issuekey');
@@ -28,10 +27,15 @@ AJS.toInit(function() {
             JIRA.SmartAjax.makeRequest({
                 url: contextPath + "/rest/issue-disposition/1.0/disposition?" + params,
                 complete: function (xhr, textStatus, smartAjaxResult) {
-                    console.log("Complete!");
-                    JIRA.IssueNavigator.reload();
+                    if (smartAjaxResult.successful){
+                        JIRA.IssueNavigator.reload();
+                    }
+                    else {
+                        AJS.$(this).sortable('cancel');
+                    }
                 }
             });
+
         }
     }).disableSelection();
 });
