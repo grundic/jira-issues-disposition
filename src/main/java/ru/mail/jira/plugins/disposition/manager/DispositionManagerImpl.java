@@ -251,7 +251,8 @@ public class DispositionManagerImpl implements DispositionManager {
 
     @Override
     public String getQueryLink(@NotNull User user) throws JqlParseException {
-        Query query = jqlQueryParser.parseQuery(JQL_QUERY);
+        String jql = replaceCurrentUser(JQL_QUERY, user.getName());
+        Query query = jqlQueryParser.parseQuery(jql);
         return jiraBaseUrls.baseUrl() + "/secure/IssueNavigator.jspa?reset=true" + searchService.getQueryString(user, query);
     }
 

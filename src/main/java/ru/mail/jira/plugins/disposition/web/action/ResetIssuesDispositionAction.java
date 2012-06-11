@@ -67,7 +67,7 @@ public class ResetIssuesDispositionAction extends JiraWebActionSupport {
         }
 
         try {
-            return getRedirect(dispositionManager.getQueryLink(remoteUser));
+            return getRedirect(dispositionManager.getQueryLink(assigneeUser));
         } catch (JqlParseException e) {
             e.printStackTrace();
             throw new RuntimeException(e);
