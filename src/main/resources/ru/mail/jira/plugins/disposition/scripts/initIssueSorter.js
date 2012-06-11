@@ -18,6 +18,8 @@ AJS.toInit(function() {
 
         update: function(event, ui) {
 
+            var that = this;
+
             var high = AJS.$(ui.item).prev().data('issuekey') || '';
             var dragged = AJS.$(ui.item).data('issuekey');
             var low = AJS.$(ui.item).next().data('issuekey') || '';
@@ -31,11 +33,13 @@ AJS.toInit(function() {
                         JIRA.IssueNavigator.reload();
                     }
                     else {
-                        AJS.$(this).sortable('cancel');
+                        AJS.$(that).sortable('cancel');
+
+                        var data = JSON.parse(smartAjaxResult.data);
+                        JIRA.Messages.showMsg(data.message, {'type':JIRA.Messages.Types.ERROR});
                     }
                 }
             });
-
         }
     }).disableSelection();
 });

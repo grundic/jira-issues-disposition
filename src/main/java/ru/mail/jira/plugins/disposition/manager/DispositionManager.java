@@ -46,10 +46,20 @@ public interface DispositionManager {
     /**
      * Change order for dragged issue
      *
-     * @param above   - issue above current (should have higher order)
+     * @param high   - issue above current (should have higher order)
      * @param dragged - current issue
-     * @param below   - issue below current (should have lower order)
+     * @param low   - issue below current (should have lower order)
      * @param errors - container for errors
      */
-    public void setDisposition(@Nullable Issue above, @NotNull Issue dragged, @Nullable Issue below, @NotNull Collection<String> errors) throws SearchException, JqlParseException;
+    public void setDisposition(@Nullable Issue high, @NotNull Issue dragged, @Nullable Issue low, @NotNull Collection<String> errors) throws SearchException, JqlParseException;
+
+
+    /**
+     * Get query for issue navigator
+     *
+     * @param user - searcher
+     * @return - query for web request
+     * @throws JqlParseException
+     */
+    public String getQueryLink(@NotNull User user) throws JqlParseException;
 }

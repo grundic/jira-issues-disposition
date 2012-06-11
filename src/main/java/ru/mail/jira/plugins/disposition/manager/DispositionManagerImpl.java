@@ -2,10 +2,12 @@ package ru.mail.jira.plugins.disposition.manager;
 
 import com.atlassian.crowd.embedded.api.User;
 import com.atlassian.jira.ComponentManager;
+import com.atlassian.jira.bc.issue.search.SearchService;
 import com.atlassian.jira.issue.CustomFieldManager;
 import com.atlassian.jira.issue.Issue;
 import com.atlassian.jira.issue.ModifiedValue;
 import com.atlassian.jira.issue.fields.CustomField;
+import com.atlassian.jira.issue.fields.rest.json.beans.JiraBaseUrls;
 import com.atlassian.jira.issue.index.IndexException;
 import com.atlassian.jira.issue.index.IssueIndexManager;
 import com.atlassian.jira.issue.search.SearchException;
@@ -15,6 +17,7 @@ import com.atlassian.jira.issue.util.DefaultIssueChangeHolder;
 import com.atlassian.jira.jql.builder.JqlQueryBuilder;
 import com.atlassian.jira.jql.parser.JqlParseException;
 import com.atlassian.jira.jql.parser.JqlQueryParser;
+import com.atlassian.jira.util.I18nHelper;
 import com.atlassian.jira.util.ImportUtils;
 import com.atlassian.jira.web.bean.PagerFilter;
 import com.atlassian.query.Query;
@@ -55,34 +58,46 @@ public class DispositionManagerImpl implements DispositionManager {
     private final SearchProvider searchProvider;
 
     @NotNull
+    private final SearchService searchService;
+
+    @NotNull
     private final CustomFieldManager customFieldManager;
 
+    @NotNull
+    private final JiraBaseUrls jiraBaseUrls;
 
-    public DispositionManagerImpl(@NotNull JqlQueryParser jqlQueryParser, @NotNull SearchProvider searchProvider, @NotNull CustomFieldManager customFieldManager) {
+    @NotNull
+    private final I18nHelper.BeanFactory i18nFactory;
+
+
+    public DispositionManagerImpl(@NotNull JqlQueryParser jqlQueryParser, @NotNull SearchProvider searchProvider, @NotNull SearchService searchService, @NotNull CustomFieldManager customFieldManager, @NotNull JiraBaseUrls jiraBaseUrls, @NotNull I18nHelper.BeanFactory i18nFactory) {
         this.jqlQueryParser = jqlQueryParser;
         this.searchProvider = searchProvider;
+        this.searchService = searchService;
         this.customFieldManager = customFieldManager;
+        this.jiraBaseUrls = jiraBaseUrls;
+        this.i18nFactory = i18nFactory;
     }
 
     @Override
     public void resetDisposition(@NotNull User userToBeReset, @NotNull Double step, @NotNull Collection<String> errors) throws JqlParseException, SearchException {
 
         User user = ComponentManager.getInstance().getJiraAuthenticationContext().getLoggedInUser();
+        final I18nHelper i18n = i18nFactory.getInstance(user);
 
         String jql = replaceCurrentUser(JQL_QUERY, userToBeReset.getName());
 
         CustomField field = getCustomFieldByIssueAndType(IssueDispositionCF.class, null);
         if (null == field) {
-            errors.add("Can't find custom field object - is should be configured first!");
+            errors.add(i18n.getText("ru.mail.jira.plugins.disposition.manager.error.custom.field.not.found"));
             return;
         }
 
 
         Query query = jqlQueryParser.parseQuery(jql);
         SearchResults searchResults = searchProvider.search(query, user, PagerFilter.getUnlimitedFilter());
-
         if (null == searchResults) {
-            errors.add("Failed to search for issues - searchResults are null!");
+            errors.add(i18n.getText("ru.mail.jira.plugins.disposition.manager.error.search.null"));
             return;
         }
 
@@ -98,24 +113,25 @@ public class DispositionManagerImpl implements DispositionManager {
     @Override
     public void setDisposition(@NotNull Issue issue, @NotNull Double value, @NotNull Collection<String> errors) throws JqlParseException, SearchException {
         User user = ComponentManager.getInstance().getJiraAuthenticationContext().getLoggedInUser();
+        final I18nHelper i18n = i18nFactory.getInstance(user);
 
         CustomField field = getCustomFieldByIssueAndType(IssueDispositionCF.class, issue);
         if (null == field) {
-            errors.add(String.format("Can't find custom field object for issue %s!", issue.getKey()));
+            errors.add(i18n.getText("ru.mail.jira.plugins.disposition.manager.error.custom.field.for.issue.not.found", issue.getKey()));
             return;
         }
 
         Double prevValue = (Double) issue.getCustomFieldValue(field);
         // don't waste time for setting same value
         if (null != prevValue && prevValue.equals(value)) {
-            errors.add("Old and new disposition values are equal!");
+            errors.add(i18n.getText("ru.mail.jira.plugins.disposition.manager.error.old.equal.new"));
             return;
         }
 
 
         // if issue in not in configured Jql - return
-        if (!isIssueInJQL(JQL_QUERY, issue, user)) {
-            errors.add(String.format("Issue %s in not in Jql '%s'!", issue.getKey(), JQL_QUERY));
+        if (issueNotInJQL(JQL_QUERY, issue, user)) {
+            errors.add(i18n.getText("ru.mail.jira.plugins.disposition.manager.error.issue.not.in.jql", issue.getKey()));
             return;
         }
 
@@ -129,97 +145,167 @@ public class DispositionManagerImpl implements DispositionManager {
     }
 
     @Override
-    public void setDisposition(@Nullable Issue above, @NotNull Issue dragged, @Nullable Issue below, @NotNull Collection<String> errors) throws SearchException, JqlParseException {
-        User user = ComponentManager.getInstance().getJiraAuthenticationContext().getLoggedInUser();
+    public void setDisposition(@Nullable Issue high, @NotNull Issue dragged, @Nullable Issue low, @NotNull Collection<String> errors) throws SearchException, JqlParseException {
+        final User user = ComponentManager.getInstance().getJiraAuthenticationContext().getLoggedInUser();
+        final I18nHelper i18n = i18nFactory.getInstance(user);
 
-        if (null == above && null == below) {
-            errors.add("High and low issues can't be null at the same time!");
+        if (!validate(high, dragged, low, errors, user, i18n)) {
             return;
         }
-
-        if (null != above && !isIssueInJQL(JQL_QUERY, above, user)) {
-            errors.add("High issue must belong to configured jql query!");
-            return;
-        }
-
-        if (null != below && !isIssueInJQL(JQL_QUERY, below, user)) {
-            errors.add("Low issue must belong to configured jql query!");
-            return;
-        }
-
-        if (!isIssueInJQL(JQL_QUERY, dragged, user)) {
-            errors.add("Dragged issue must belong to configured jql query!");
-            return;
-        }
-
 
         // assume, that all issues have the same custom field
         @Nullable
         CustomField field = getCustomFieldByIssueAndType(IssueDispositionCF.class, dragged);
         if (null == field) {
-            errors.add(String.format("Can't find custom field object for issue %s!", dragged.getKey()));
+            errors.add(i18n.getText("ru.mail.jira.plugins.disposition.manager.error.custom.field.for.issue.not.found", dragged.getKey()));
             return;
         }
 
 
-        Double aboveValue = (above != null) ? (Double) above.getCustomFieldValue(field) : null;
+        // get values from issues
+        Double highValue = (high != null) ? (Double) high.getCustomFieldValue(field) : null;
         Double draggedValue = (Double) dragged.getCustomFieldValue(field);
-        Double belowValue = (below != null) ? (Double) below.getCustomFieldValue(field) : null;
+        Double lowValue = (low != null) ? (Double) low.getCustomFieldValue(field) : null;
 
-        if (null == aboveValue && null == belowValue) {
-            errors.add("Both High and Low issues should have initialized disposition values!");
+        // one of issues - high or low - should have value
+        if (null == highValue && null == lowValue) {
+            errors.add(i18n.getText("ru.mail.jira.plugins.disposition.manager.error.high.and.low.uninitialized"));
             return;
         }
+
 
         @Nullable
         Long average = null;
-        if (null != aboveValue && null != belowValue) {
-            average = getAverage(aboveValue, belowValue);
+        if (null != highValue && null != lowValue) {
+
+            if (lowValue <= highValue) {
+                errors.add(i18n.getText("ru.mail.jira.plugins.disposition.manager.error.incorrect.order", getQueryLink(user)));
+                return;
+            }
+
+            if (!areIssuesSideBySide(JQL_QUERY, highValue, lowValue, field, user)) {
+                errors.add(i18n.getText("ru.mail.jira.plugins.disposition.manager.error.incorrect.order", getQueryLink(user)));
+                return;
+            }
+
+            average = getAverage(highValue, lowValue);
         }
 
         if (null == average) {
-            if ((null != draggedValue && null != aboveValue && draggedValue < aboveValue)) {
-                shiftIssuesUp(JQL_QUERY, aboveValue, field, user, dragged);
-                updateValue(field, draggedValue, aboveValue, dragged, true);
-            } else {
-                if (null != belowValue) {
-                    shiftIssuesDown(JQL_QUERY, belowValue, field, user, dragged);
-                    updateValue(field, draggedValue, belowValue, dragged, true);
+            if (null == highValue) {
+                /*
+                  If some issue is dragged to first position (empty highValue),
+                  then try to get average between min disposition and lowValue. If it's not possible - shift issues down.
+                */
+
+                if (!isMinValue(JQL_QUERY, lowValue, field, user)) {
+                    // If it's lowest value in view, but not in query - error
+                    errors.add(i18n.getText("ru.mail.jira.plugins.disposition.manager.error.incorrect.order", getQueryLink(user)));
+                    return;
+                }
+
+                Long lowAverage = getAverage(0.0, lowValue);
+
+                if (null == lowAverage) {
+                    shiftIssuesDown(JQL_QUERY, lowValue, field, user, dragged);
+                    updateValue(field, draggedValue, lowValue, dragged, true);
                 } else {
-                    updateValue(field, draggedValue, aboveValue + DISPOSITION_STEP, dragged, true);
+                    updateValue(field, draggedValue, (double) lowAverage, dragged, true);
+                }
+            } else {
+                if (lowValue != null) {
+                    if (null != draggedValue && draggedValue < highValue) {
+                        /*
+                         Issue is dragged from top to bottom.
+                         Shift other issues up.
+                        */
+                        shiftIssuesUp(JQL_QUERY, highValue, field, user, dragged);
+                        updateValue(field, draggedValue, highValue, dragged, true);
+                    } else {
+                        /*
+                          Issue is dragged between two issues with initialized values.
+                          Shift down in this case.
+                        */
+                        shiftIssuesDown(JQL_QUERY, lowValue, field, user, dragged);
+                        updateValue(field, draggedValue, lowValue, dragged, true);
+                    }
+                } else {
+                    /*
+                     Value of bottom (low) issue is uninitialized.
+                     Add default step value to high issue's value.
+                    */
+
+                    if (!isMaxValue(JQL_QUERY, highValue, field, user)) {
+                        // If it's highest value in view, but not in query - error
+                        errors.add(i18n.getText("ru.mail.jira.plugins.disposition.manager.error.incorrect.order", getQueryLink(user)));
+                        return;
+                    }
+                    updateValue(field, draggedValue, highValue + DISPOSITION_STEP, dragged, true);
                 }
             }
         } else {
+            // we've found average value for dragged issue - no need to shift other issues
             updateValue(field, draggedValue, (double) average, dragged, true);
         }
+    }
+
+    @Override
+    public String getQueryLink(@NotNull User user) throws JqlParseException {
+        Query query = jqlQueryParser.parseQuery(JQL_QUERY);
+        return jiraBaseUrls.baseUrl() + "/secure/IssueNavigator.jspa?reset=true" + searchService.getQueryString(user, query);
     }
 
 
     /*-------------------------------------   Private helper methods   ----------------------------------------*/
 
+    private boolean validate(@Nullable Issue high, @NotNull Issue dragged, @Nullable Issue low, @NotNull Collection<String> errors, @NotNull final User user, @NotNull final I18nHelper i18n) throws SearchException, JqlParseException {
+        if (null == high && null == low) {
+            errors.add(i18n.getText("ru.mail.jira.plugins.disposition.manager.error.high.and.low.null"));
+            return false;
+        }
+
+        if (null != high && issueNotInJQL(JQL_QUERY, high, user)) {
+            errors.add(i18n.getText("ru.mail.jira.plugins.disposition.manager.error.issue.not.in.jql", high.getKey()));
+            return false;
+        }
+
+        if (null != low && issueNotInJQL(JQL_QUERY, low, user)) {
+            errors.add(i18n.getText("ru.mail.jira.plugins.disposition.manager.error.issue.not.in.jql", low.getKey()));
+            return false;
+        }
+
+        if (issueNotInJQL(JQL_QUERY, dragged, user)) {
+            errors.add(i18n.getText("ru.mail.jira.plugins.disposition.manager.error.issue.not.in.jql", dragged.getKey()));
+            return false;
+        }
+
+        return true;
+    }
+
+
     /**
-     * Check that current issue is in configured jql query
+     * Check, that current issue is not in configured jql query
      *
      * @param jql   - configured JQL query
      * @param issue - current issue
      * @param user  - searcher
-     * @return - true if issue is in query false otherwise
+     * @return - true if issue is not in query false otherwise
      * @throws JqlParseException
      * @throws SearchException
      */
-    private boolean isIssueInJQL(@NotNull String jql, @NotNull Issue issue, @NotNull User user) throws JqlParseException, SearchException {
+    private boolean issueNotInJQL(@NotNull String jql, @NotNull Issue issue, @NotNull User user) throws JqlParseException, SearchException {
         Query query = jqlQueryParser.parseQuery(jql);
         JqlQueryBuilder jqlQueryBuilder = JqlQueryBuilder.newBuilder(query);
         jqlQueryBuilder.where().and().issue(issue.getKey());
 
-        return searchProvider.searchCount(jqlQueryBuilder.buildQuery(), user) == 1;
+        return searchProvider.searchCount(jqlQueryBuilder.buildQuery(), user) != 1;
     }
 
     /**
      * Check if disposition with current value already exists
      *
      * @param jql   - configured jql query
-     * @param value - disposition query
+     * @param value - disposition value
      * @param field - disposition custom field
      * @param user  - searcher
      * @return - true if disposition with given value found in configured Jql, else otherwise
@@ -232,6 +318,66 @@ public class DispositionManagerImpl implements DispositionManager {
         jqlQueryBuilder.where().and().customField(field.getIdAsLong()).eq(value.toString());
 
         return searchProvider.searchCount(jqlQueryBuilder.buildQuery(), user) == 1;
+    }
+
+    /**
+     * Check that issues with High and Low values are side by side
+     *
+     * @param jql   - configured jql query
+     * @param high  - local minimum value (high issues have lower disposition value)
+     * @param low   - local maximum value (low issues have higher disposition value)
+     * @param field - disposition custom field
+     * @param user  - searcher
+     * @return - true is issues close to each other, false otherwise
+     * @throws JqlParseException
+     * @throws SearchException
+     */
+    private boolean areIssuesSideBySide(@NotNull String jql, @NotNull Double high, @NotNull Double low, @NotNull CustomField field, @NotNull User user) throws JqlParseException, SearchException {
+        Query query = jqlQueryParser.parseQuery(jql);
+        JqlQueryBuilder jqlQueryBuilder = JqlQueryBuilder.newBuilder(query);
+        jqlQueryBuilder.where().and().customField(field.getIdAsLong()).gt(high.toString()).and().customField(field.getIdAsLong()).lt(low.toString());
+
+        return searchProvider.searchCount(jqlQueryBuilder.buildQuery(), user) == 0;
+    }
+
+    /**
+     * Check that value is maximum disposition value for configured query
+     *
+     * @param jql   - configured jql query
+     * @param value - searched value
+     * @param field - disposition custom field
+     * @param user  - searcher
+     * @return - true if value is maximum for configured query, false otherwise
+     * @throws JqlParseException
+     * @throws SearchException
+     */
+    private boolean isMaxValue(@NotNull String jql, Double value, @NotNull CustomField field, @NotNull User user) throws JqlParseException, SearchException {
+        Query query = jqlQueryParser.parseQuery(jql);
+        JqlQueryBuilder jqlQueryBuilder = JqlQueryBuilder.newBuilder(query);
+        jqlQueryBuilder.where().and().customField(field.getIdAsLong()).gt(value.toString());
+
+        return searchProvider.searchCount(jqlQueryBuilder.buildQuery(), user) == 0;
+
+    }
+
+    /**
+     * Check that value is minimum disposition value for configured query
+     *
+     * @param jql   - configured jql query
+     * @param value - searched value
+     * @param field - disposition custom field
+     * @param user  - searcher
+     * @return - true if value is minimum for configured query, false otherwise
+     * @throws JqlParseException
+     * @throws SearchException
+     */
+    private boolean isMinValue(@NotNull String jql, Double value, @NotNull CustomField field, @NotNull User user) throws JqlParseException, SearchException {
+        Query query = jqlQueryParser.parseQuery(jql);
+        JqlQueryBuilder jqlQueryBuilder = JqlQueryBuilder.newBuilder(query);
+        jqlQueryBuilder.where().and().customField(field.getIdAsLong()).lt(value.toString());
+
+        return searchProvider.searchCount(jqlQueryBuilder.buildQuery(), user) == 0;
+
     }
 
     /**

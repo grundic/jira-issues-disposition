@@ -4,7 +4,6 @@ import com.atlassian.jira.issue.Issue;
 import com.atlassian.jira.issue.IssueManager;
 import com.atlassian.jira.issue.search.SearchException;
 import com.atlassian.jira.jql.parser.JqlParseException;
-import com.atlassian.jira.jql.parser.JqlQueryParser;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import ru.mail.jira.plugins.disposition.manager.DispositionManager;
@@ -18,8 +17,6 @@ import javax.ws.rs.core.Response;
 import java.util.ArrayList;
 import java.util.Collection;
 
-import static javax.ws.rs.core.Response.serverError;
-
 /**
  * User: g.chernyshev
  * Date: 6/8/12
@@ -31,14 +28,11 @@ import static javax.ws.rs.core.Response.serverError;
 public class DispositionResource {
 
     @NotNull
-    private final JqlQueryParser jqlQueryParser;
-    @NotNull
     private final DispositionManager dispositionManager;
     @NotNull
     private final IssueManager issueManager;
 
-    public DispositionResource(@NotNull JqlQueryParser jqlQueryParser, @NotNull DispositionManager dispositionManager, @NotNull IssueManager issueManager) {
-        this.jqlQueryParser = jqlQueryParser;
+    public DispositionResource(@NotNull DispositionManager dispositionManager, @NotNull IssueManager issueManager) {
         this.dispositionManager = dispositionManager;
         this.issueManager = issueManager;
     }
@@ -68,11 +62,10 @@ public class DispositionResource {
         }
 
         if (errors.size() > 0) {
-
-            return serverError().build();
+            return badRequest(errors);
         }
 
-        return null;
+        return Response.ok().build();
     }
 
     @Path("/disposition")
@@ -86,9 +79,10 @@ public class DispositionResource {
         Issue draggedIssue = issueManager.getIssueObject(dragged);
         Issue lowIssue = issueManager.getIssueObject(low);
 
+        Collection<String> errors = new ArrayList<String>();
 
         try {
-            dispositionManager.setDisposition(highIssue, draggedIssue, lowIssue, null);
+            dispositionManager.setDisposition(highIssue, draggedIssue, lowIssue, errors);
         } catch (SearchException e) {
             e.printStackTrace();
             throw new RuntimeException(e);
@@ -97,10 +91,14 @@ public class DispositionResource {
             throw new RuntimeException(e);
         }
 
-        return null;
+        if (errors.size() > 0) {
+            return badRequest(errors);
+        }
+
+        return Response.ok().build();
     }
 
-    private Response badRequest(Collection<String> errors) {
+    private Response badRequest(final Collection<String> errors) {
         return Response.status(Response.Status.BAD_REQUEST).
                 type(MediaType.APPLICATION_JSON).
                 entity(new ErrorListEntity(Response.Status.BAD_REQUEST, errors)).
@@ -109,7 +107,7 @@ public class DispositionResource {
 
     @Path("/check")
     @GET
-    public Response parseJqlQuery(@Nullable @QueryParam("q") final String q) {
+    public Response parseJqlQuery() {
 
         Collection<String> errors = new ArrayList<String>();
         errors.add("Error-1");

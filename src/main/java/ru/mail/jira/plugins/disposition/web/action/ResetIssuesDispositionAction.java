@@ -2,17 +2,17 @@ package ru.mail.jira.plugins.disposition.web.action;
 
 import com.atlassian.crowd.embedded.api.User;
 import com.atlassian.jira.ComponentManager;
-import com.atlassian.jira.bc.issue.search.SearchService;
-import com.atlassian.jira.issue.fields.rest.json.beans.JiraBaseUrls;
 import com.atlassian.jira.issue.search.SearchException;
 import com.atlassian.jira.jql.parser.JqlParseException;
-import com.atlassian.jira.jql.parser.JqlQueryParser;
 import com.atlassian.jira.user.util.UserManager;
 import com.atlassian.jira.web.action.JiraWebActionSupport;
 import com.atlassian.plugin.webresource.WebResourceManager;
-import com.atlassian.query.Query;
+import org.jetbrains.annotations.NotNull;
 import ru.mail.jira.plugins.disposition.manager.DispositionManager;
 import ru.mail.jira.plugins.disposition.manager.DispositionManagerImpl;
+
+import java.util.ArrayList;
+import java.util.Collection;
 
 /**
  * User: g.chernyshev
@@ -21,24 +21,21 @@ import ru.mail.jira.plugins.disposition.manager.DispositionManagerImpl;
  */
 public class ResetIssuesDispositionAction extends JiraWebActionSupport {
 
+    @NotNull
     private final WebResourceManager webResourceManager;
+    @NotNull
     private final UserManager userManager;
+    @NotNull
     private final DispositionManager dispositionManager;
-    private final SearchService searchService;
-    private final JqlQueryParser jqlQueryParser;
-    private final JiraBaseUrls jiraBaseUrls;
 
     private String assignee;
 
     private Double step = DispositionManagerImpl.DISPOSITION_STEP;
 
-    public ResetIssuesDispositionAction(WebResourceManager webResourceManager, UserManager userManager, DispositionManager dispositionManager, SearchService searchService, JqlQueryParser jqlQueryParser, JiraBaseUrls jiraBaseUrls) {
+    public ResetIssuesDispositionAction(@NotNull WebResourceManager webResourceManager, @NotNull UserManager userManager, @NotNull DispositionManager dispositionManager) {
         this.webResourceManager = webResourceManager;
         this.userManager = userManager;
         this.dispositionManager = dispositionManager;
-        this.searchService = searchService;
-        this.jqlQueryParser = jqlQueryParser;
-        this.jiraBaseUrls = jiraBaseUrls;
     }
 
     @Override
@@ -51,8 +48,12 @@ public class ResetIssuesDispositionAction extends JiraWebActionSupport {
     protected String doExecute() {
         User remoteUser = ComponentManager.getInstance().getJiraAuthenticationContext().getLoggedInUser();
         User assigneeUser = userManager.getUser(assignee);
+
+        Collection<String> errors = new ArrayList<String>();
+
         try {
-            dispositionManager.resetDisposition(assigneeUser, getStep(), null);
+
+            dispositionManager.resetDisposition(assigneeUser, getStep(), errors);
         } catch (JqlParseException e) {
             e.printStackTrace();
             throw new RuntimeException(e);
@@ -61,16 +62,16 @@ public class ResetIssuesDispositionAction extends JiraWebActionSupport {
             throw new RuntimeException(e);
         }
 
+        if (errors.size() > 0) {
+            // TODO - add error handling
+        }
 
-        Query query;
         try {
-            query = jqlQueryParser.parseQuery(DispositionManagerImpl.JQL_QUERY);
+            return getRedirect(dispositionManager.getQueryLink(remoteUser));
         } catch (JqlParseException e) {
             e.printStackTrace();
             throw new RuntimeException(e);
         }
-
-        return getRedirect(jiraBaseUrls.baseUrl() + "/secure/IssueNavigator.jspa?reset=true" + searchService.getQueryString(remoteUser, query));
     }
 
 

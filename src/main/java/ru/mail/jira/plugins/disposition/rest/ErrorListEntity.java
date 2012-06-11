@@ -11,6 +11,7 @@ import java.util.Collection;
  * @author g.chernyshev
  */
 
+@SuppressWarnings("unused")
 @XmlRootElement(name = "error")
 public class ErrorListEntity {
     @XmlAttribute
