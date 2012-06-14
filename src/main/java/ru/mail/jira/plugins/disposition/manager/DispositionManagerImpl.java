@@ -145,9 +145,17 @@ public class DispositionManagerImpl implements DispositionManager {
     }
 
     @Override
-    public void setDisposition(@Nullable Issue high, @NotNull Issue dragged, @Nullable Issue low, @NotNull Collection<String> errors) throws SearchException, JqlParseException {
-        final User user = ComponentManager.getInstance().getJiraAuthenticationContext().getLoggedInUser();
-        final I18nHelper i18n = i18nFactory.getInstance(user);
+    public void setDisposition(@Nullable Issue high, @NotNull Issue dragged, @Nullable Issue low, @NotNull Collection<User> users, @NotNull Collection<String> errors) throws SearchException, JqlParseException {
+
+        User currentUser = ComponentManager.getInstance().getJiraAuthenticationContext().getLoggedInUser();
+
+        final I18nHelper i18n = i18nFactory.getInstance(currentUser);
+
+        final User user = getSuitableUser(dragged, users);
+        if (null == user) {
+            errors.add(i18n.getText("ru.mail.jira.plugins.disposition.manager.error.issue.not.in.jql", dragged.getKey()));
+            return;
+        }
 
         if (!validate(high, dragged, low, errors, user, i18n)) {
             return;
@@ -259,6 +267,38 @@ public class DispositionManagerImpl implements DispositionManager {
 
     /*-------------------------------------   Private helper methods   ----------------------------------------*/
 
+    /**
+     * Search suitable user for configured Jql query
+     * @param issue - current dragged issue
+     * @param users - list of users to choose from
+     * @return - suitable user
+     * @throws SearchException
+     * @throws JqlParseException
+     */
+    @Nullable
+    private User getSuitableUser(@NotNull Issue issue, @NotNull Collection<User> users) throws SearchException, JqlParseException {
+        for (User user : users) {
+            if (!issueNotInJQL(JQL_QUERY, issue, user)) {
+                return user;
+            }
+        }
+
+        return null;
+    }
+
+
+    /**
+     * Validate simple rules
+     * @param high - issue, above dragged
+     * @param dragged - currently dragged issue
+     * @param low - issue, below dragged
+     * @param errors - collection to add errors
+     * @param user - suitable user
+     * @param i18n - internalisation bean
+     * @return - true if all checks are passed, else otherwise
+     * @throws SearchException
+     * @throws JqlParseException
+     */
     private boolean validate(@Nullable Issue high, @NotNull Issue dragged, @Nullable Issue low, @NotNull Collection<String> errors, @NotNull final User user, @NotNull final I18nHelper i18n) throws SearchException, JqlParseException {
         if (null == high && null == low) {
             errors.add(i18n.getText("ru.mail.jira.plugins.disposition.manager.error.high.and.low.null"));

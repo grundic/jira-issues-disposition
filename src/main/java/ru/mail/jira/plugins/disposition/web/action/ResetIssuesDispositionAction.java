@@ -1,7 +1,6 @@
 package ru.mail.jira.plugins.disposition.web.action;
 
 import com.atlassian.crowd.embedded.api.User;
-import com.atlassian.jira.ComponentManager;
 import com.atlassian.jira.issue.search.SearchException;
 import com.atlassian.jira.jql.parser.JqlParseException;
 import com.atlassian.jira.user.util.UserManager;
@@ -10,6 +9,7 @@ import com.atlassian.plugin.webresource.WebResourceManager;
 import org.jetbrains.annotations.NotNull;
 import ru.mail.jira.plugins.disposition.manager.DispositionManager;
 import ru.mail.jira.plugins.disposition.manager.DispositionManagerImpl;
+import ru.mail.jira.plugins.disposition.rest.DispositionResource;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -46,14 +46,14 @@ public class ResetIssuesDispositionAction extends JiraWebActionSupport {
 
     @Override
     protected String doExecute() {
-        User remoteUser = ComponentManager.getInstance().getJiraAuthenticationContext().getLoggedInUser();
-        User assigneeUser = userManager.getUser(assignee);
+        User selectedUser = userManager.getUser(assignee);
 
         Collection<String> errors = new ArrayList<String>();
 
         try {
-
-            dispositionManager.resetDisposition(assigneeUser, getStep(), errors);
+            dispositionManager.resetDisposition(selectedUser, getStep(), errors);
+            // save reindexed username in cookie to be able to sort issue for this user
+            setConglomerateCookieValue(DispositionResource.AJS_CONGLOMERATE_COOKIE, DispositionResource.CONGLOMERATE_COOKIE_KEY, selectedUser.getName());
         } catch (JqlParseException e) {
             e.printStackTrace();
             throw new RuntimeException(e);
@@ -67,7 +67,7 @@ public class ResetIssuesDispositionAction extends JiraWebActionSupport {
         }
 
         try {
-            return getRedirect(dispositionManager.getQueryLink(assigneeUser));
+            return getRedirect(dispositionManager.getQueryLink(selectedUser));
         } catch (JqlParseException e) {
             e.printStackTrace();
             throw new RuntimeException(e);

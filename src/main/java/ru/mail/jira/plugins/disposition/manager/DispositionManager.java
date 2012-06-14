@@ -25,8 +25,8 @@ public interface DispositionManager {
      * Reset disposition for all issues in configured Jql query for selected user
      *
      * @param currentUser - user, for whom reindex will be executed
-     * @param step - value between each issue
-     * @param errors - container for errors
+     * @param step        - value between each issue
+     * @param errors      - container for errors
      * @throws JqlParseException
      * @throws SearchException
      */
@@ -36,8 +36,8 @@ public interface DispositionManager {
     /**
      * Set order for issue
      *
-     * @param issue - issue to be ordered
-     * @param value - value for order
+     * @param issue  - issue to be ordered
+     * @param value  - value for order
      * @param errors - container for errors
      */
     public void setDisposition(@NotNull Issue issue, @NotNull Double value, @NotNull Collection<String> errors) throws JqlParseException, SearchException;
@@ -46,12 +46,13 @@ public interface DispositionManager {
     /**
      * Change order for dragged issue
      *
-     * @param high   - issue above current (should have higher order)
-     * @param dragged - current issue
-     * @param low   - issue below current (should have lower order)
-     * @param errors - container for errors
+     * @param high          - issue above current (should have higher order)
+     * @param dragged       - current issue
+     * @param low           - issue below current (should have lower order)
+     * @param users         - users whom issues can be reordered
+     * @param errors        - container for errors
      */
-    public void setDisposition(@Nullable Issue high, @NotNull Issue dragged, @Nullable Issue low, @NotNull Collection<String> errors) throws SearchException, JqlParseException;
+    public void setDisposition(@Nullable Issue high, @NotNull Issue dragged, @Nullable Issue low, @NotNull Collection<User> users, @NotNull Collection<String> errors) throws SearchException, JqlParseException;
 
 
     /**
