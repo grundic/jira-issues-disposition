@@ -8,6 +8,7 @@ package ru.mail.jira.plugins.disposition.manager;
 
 import com.atlassian.crowd.embedded.api.User;
 import com.atlassian.jira.issue.Issue;
+import com.atlassian.jira.issue.fields.CustomField;
 import com.atlassian.jira.issue.search.SearchException;
 import com.atlassian.jira.jql.parser.JqlParseException;
 import org.jetbrains.annotations.NotNull;
@@ -38,21 +39,32 @@ public interface DispositionManager {
      *
      * @param issue  - issue to be ordered
      * @param value  - value for order
+     * @param users  - users whom issues can be reordered
      * @param errors - container for errors
      */
-    public void setDisposition(@NotNull Issue issue, @NotNull Double value, @NotNull Collection<String> errors) throws JqlParseException, SearchException;
+    public void setDisposition(@NotNull Issue issue, @NotNull Double value, @NotNull Collection<User> users, @NotNull Collection<String> errors) throws JqlParseException, SearchException;
 
 
     /**
      * Change order for dragged issue
      *
-     * @param high          - issue above current (should have higher order)
-     * @param dragged       - current issue
-     * @param low           - issue below current (should have lower order)
-     * @param users         - users whom issues can be reordered
-     * @param errors        - container for errors
+     * @param high    - issue above current (should have higher order)
+     * @param dragged - current issue
+     * @param low     - issue below current (should have lower order)
+     * @param users   - users whom issues can be reordered
+     * @param errors  - container for errors
      */
     public void setDisposition(@Nullable Issue high, @NotNull Issue dragged, @Nullable Issue low, @NotNull Collection<User> users, @NotNull Collection<String> errors) throws SearchException, JqlParseException;
+
+
+    /**
+     * Get first custom field of specified type for issue
+     *
+     * @param type  - type of custom field to search
+     * @param issue - issue to get custom fields from
+     * @return - single custom field or null
+     */
+    public CustomField getCustomFieldByIssueAndType(@NotNull Class<?> type, @Nullable Issue issue);
 
 
     /**

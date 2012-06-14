@@ -8,6 +8,7 @@
 <form id="reindex-issues" class="aui" action="ResetIssuesDispositionAction.jspa" method="POST">
     <h2>${i18n.getText("ru.mail.jira.plugins.disposition.web.reindex.description")}</h2>
 
+    #foreach($error in $errorMessages)<div class="aui-message error"><span class="error-icon"></span>$error</div>#end
 
     <table >
         <tbody>

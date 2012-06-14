@@ -111,9 +111,17 @@ public class DispositionManagerImpl implements DispositionManager {
     }
 
     @Override
-    public void setDisposition(@NotNull Issue issue, @NotNull Double value, @NotNull Collection<String> errors) throws JqlParseException, SearchException {
-        User user = ComponentManager.getInstance().getJiraAuthenticationContext().getLoggedInUser();
-        final I18nHelper i18n = i18nFactory.getInstance(user);
+    public void setDisposition(@NotNull Issue issue, @NotNull Double value, @NotNull Collection<User> users, @NotNull Collection<String> errors) throws JqlParseException, SearchException {
+
+        User currentUser = ComponentManager.getInstance().getJiraAuthenticationContext().getLoggedInUser();
+
+        final I18nHelper i18n = i18nFactory.getInstance(currentUser);
+
+        final User user = getSuitableUser(issue, users);
+        if (null == user) {
+            errors.add(i18n.getText("ru.mail.jira.plugins.disposition.manager.error.issue.not.in.jql.for.user", issue.getKey()));
+            return;
+        }
 
         CustomField field = getCustomFieldByIssueAndType(IssueDispositionCF.class, issue);
         if (null == field) {
@@ -153,7 +161,7 @@ public class DispositionManagerImpl implements DispositionManager {
 
         final User user = getSuitableUser(dragged, users);
         if (null == user) {
-            errors.add(i18n.getText("ru.mail.jira.plugins.disposition.manager.error.issue.not.in.jql", dragged.getKey()));
+            errors.add(i18n.getText("ru.mail.jira.plugins.disposition.manager.error.issue.not.in.jql.for.user", dragged.getKey()));
             return;
         }
 
@@ -257,6 +265,21 @@ public class DispositionManagerImpl implements DispositionManager {
         }
     }
 
+
+    @Nullable
+    public CustomField getCustomFieldByIssueAndType(@NotNull Class<?> type, @Nullable Issue issue) {
+
+        Collection<CustomField> fields = (null == issue) ?
+                customFieldManager.getCustomFieldObjects() : customFieldManager.getCustomFieldObjects(issue);
+
+        for (CustomField cf : fields) {
+            if (type.isAssignableFrom(cf.getCustomFieldType().getClass())) {
+                return cf;
+            }
+        }
+        return null;
+    }
+
     @Override
     public String getQueryLink(@NotNull User user) throws JqlParseException {
         String jql = replaceCurrentUser(JQL_QUERY, user.getName());
@@ -269,6 +292,7 @@ public class DispositionManagerImpl implements DispositionManager {
 
     /**
      * Search suitable user for configured Jql query
+     *
      * @param issue - current dragged issue
      * @param users - list of users to choose from
      * @return - suitable user
@@ -289,12 +313,13 @@ public class DispositionManagerImpl implements DispositionManager {
 
     /**
      * Validate simple rules
-     * @param high - issue, above dragged
+     *
+     * @param high    - issue, above dragged
      * @param dragged - currently dragged issue
-     * @param low - issue, below dragged
-     * @param errors - collection to add errors
-     * @param user - suitable user
-     * @param i18n - internalisation bean
+     * @param low     - issue, below dragged
+     * @param errors  - collection to add errors
+     * @param user    - suitable user
+     * @param i18n    - internalisation bean
      * @return - true if all checks are passed, else otherwise
      * @throws SearchException
      * @throws JqlParseException
@@ -441,27 +466,6 @@ public class DispositionManagerImpl implements DispositionManager {
             }
         }
         return result;
-    }
-
-    /**
-     * Get first custom field of specified type for issue
-     *
-     * @param type  - type of custom field to search
-     * @param issue - issue to get custom fields from
-     * @return - single custom field or null
-     */
-    @Nullable
-    private CustomField getCustomFieldByIssueAndType(@NotNull Class<?> type, @Nullable Issue issue) {
-
-        Collection<CustomField> fields = (null == issue) ?
-                customFieldManager.getCustomFieldObjects() : customFieldManager.getCustomFieldObjects(issue);
-
-        for (CustomField cf : fields) {
-            if (type.isAssignableFrom(cf.getCustomFieldType().getClass())) {
-                return cf;
-            }
-        }
-        return null;
     }
 
     /**

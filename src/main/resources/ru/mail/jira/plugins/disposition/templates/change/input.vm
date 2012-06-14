@@ -1,0 +1,35 @@
+<html>
+<head>
+    <meta name="decorator" content="issueaction">
+    <title>${i18n.getText("ru.mail.jira.plugins.disposition.web.change.title")}</title>
+</head>
+<body>
+<form id="issue-disposition-form" method="post" class="aui"
+      action="${req.contextPath}/secure/ChangeIssueDispositionAction.jspa?id=$issue.id">
+    <div class="form-body">
+
+        <h2>${i18n.getText("ru.mail.jira.plugins.disposition.web.change.title")}</h2>
+
+        #foreach($error in $errorMessages)<div class="aui-message error"><span class="error-icon"></span>$error</div>#end
+
+        <fieldset>
+            <div class="field-group">
+                <label for="disposition">${i18n.getText("ru.mail.jira.plugins.disposition")}</label>
+                <input id="disposition" name="disposition" value="$disposition" type="text" class="text"/>
+
+                <div class="description">${i18n.getText("ru.mail.jira.plugins.disposition.web.change.disposition.description")}</div>
+            </div>
+        </fieldset>
+
+    </div>
+
+    <div class="buttons-container form-footer">
+        <div class="buttons">
+            <input class="button submit" type="submit" value="${i18n.getText('common.words.save')}" >
+            <a accesskey="`" class="cancel" href="#" id="cancel-button" title="${i18n.getText('common.words.cancel')}">${i18n.getText("common.words.cancel")}</a>
+        </div>
+    </div>
+
+</form>
+</body>
+</html>

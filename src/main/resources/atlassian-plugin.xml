@@ -16,7 +16,6 @@
 
         <resource type="velocity" name="view" location="templates/plugins/fields/view/view-number.vm"/>
         <resource type="velocity" name="column-view" location="templates/plugins/fields/view/view-number.vm"/>
-        <resource type="velocity" name="edit" location="templates/plugins/fields/edit/edit-number.vm"/>
         <resource type="velocity" name="xml" location="templates/plugins/fields/xml/xml-number.vm"/>
     </customfield-type>
 
@@ -54,8 +53,8 @@
         <actions>
             <action name="ru.mail.jira.plugins.disposition.web.action.ResetIssuesDispositionAction"
                     alias="ResetIssuesDispositionAction">
-                <view name="success">/ru/mail/jira/plugins/disposition/templates/reindex/input.vm</view>
                 <view name="input">/ru/mail/jira/plugins/disposition/templates/reindex/input.vm</view>
+                <view name="error">/ru/mail/jira/plugins/disposition/templates/reindex/input.vm</view>
             </action>
         </actions>
     </webwork1>
@@ -64,6 +63,38 @@
         <resource type="download" name="initUserPicker.js" location="/ru/mail/jira/plugins/disposition/scripts/initUserPicker.js"/>
     </web-resource>
 
+    <!-- Web stuff for changing issue disposition -->
+    <web-item key="change-issue-disposition"
+              name="Change disposition of issue"
+              section="operations-work" weight="1">
+
+        <label key="ru.mail.jira.plugins.disposition.web.item.change.label"/>
+        <tooltip key="ru.mail.jira.plugins.disposition.web.item.change.tooltip"/>
+        <styleClass>issueaction-disposition-issue</styleClass>
+
+        <link linkId="disposition-issue"> <!-- link value, id will be needed later on -->
+            /secure/ChangeIssueDispositionAction!default.jspa?#if(${issue})id=${issue.id}#end
+        </link>
+
+        <condition class="com.atlassian.jira.plugin.webfragment.conditions.UserLoggedInCondition"/>
+        <condition class="com.atlassian.jira.plugin.webfragment.conditions.IsIssueEditableCondition"/>
+    </web-item>
+
+
+    <webwork1 key="change-issue-disposition-action" name="Change issue disposition Action" class="java.lang.Object">
+        <actions>
+            <action name="ru.mail.jira.plugins.disposition.web.action.ChangeIssueDispositionAction"
+                    alias="ChangeIssueDispositionAction">
+                <view name="input">/ru/mail/jira/plugins/disposition/templates/change/input.vm</view>
+                <view name="error">/ru/mail/jira/plugins/disposition/templates/change/input.vm</view>
+            </action>
+        </actions>
+    </webwork1>
+
+    <web-resource key="init-disposition-change-dialog" name="init-disposition-change-dialog">
+        <resource type="download" name="initChangeDialog.js" location="/ru/mail/jira/plugins/disposition/scripts/initChangeDialog.js"/>
+        <context>atl.general</context>
+    </web-resource>
 
     <!-- Javascript Web Resources for Issue Disposition -->
     <web-resource key="issue-disposition-context" name="issue-disposition-context">

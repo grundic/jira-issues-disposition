@@ -1,16 +1,14 @@
 package ru.mail.jira.plugins.disposition.rest;
 
 import com.atlassian.crowd.embedded.api.User;
-import com.atlassian.jira.ComponentManager;
 import com.atlassian.jira.issue.Issue;
 import com.atlassian.jira.issue.IssueManager;
 import com.atlassian.jira.issue.search.SearchException;
 import com.atlassian.jira.jql.parser.JqlParseException;
-import com.atlassian.jira.user.util.UserUtil;
-import com.atlassian.jira.web.util.CookieUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import ru.mail.jira.plugins.disposition.manager.DispositionManager;
+import ru.mail.jira.plugins.disposition.web.CookieHelper;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.GET;
@@ -22,7 +20,6 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Map;
 
 
 /**
@@ -39,23 +36,18 @@ public class DispositionResource {
     private final DispositionManager dispositionManager;
     @NotNull
     private final IssueManager issueManager;
-    @NotNull
-    private final UserUtil userUtil;
 
-    public static final String AJS_CONGLOMERATE_COOKIE = "AJS.conglomerate.cookie";
-    public static final String CONGLOMERATE_COOKIE_KEY = "disposition";
-
-    public DispositionResource(@NotNull DispositionManager dispositionManager, @NotNull IssueManager issueManager, @NotNull UserUtil userUtil) {
+    public DispositionResource(@NotNull DispositionManager dispositionManager, @NotNull IssueManager issueManager) {
         this.dispositionManager = dispositionManager;
         this.issueManager = issueManager;
-        this.userUtil = userUtil;
     }
 
 
     @Path("/set-disposition-value")
     @GET
     public Response setDisposition(@Nullable @QueryParam("issue") final String issue,
-                                   @Nullable @QueryParam("value") final Double value) {
+                                   @Nullable @QueryParam("value") final Double value,
+                                   @Context HttpServletRequest request) {
 
         if (null == issue || null == value) {
             return null;
@@ -66,7 +58,7 @@ public class DispositionResource {
         Collection<String> errors = new ArrayList<String>();
 
         try {
-            dispositionManager.setDisposition(issueObject, value, errors);
+            dispositionManager.setDisposition(issueObject, value, CookieHelper.getUsers(request), errors);
         } catch (JqlParseException e) {
             e.printStackTrace();
             throw new RuntimeException(e);
@@ -96,7 +88,7 @@ public class DispositionResource {
         Collection<String> errors = new ArrayList<String>();
 
         try {
-            dispositionManager.setDisposition(highIssue, draggedIssue, lowIssue, getUsers(request), errors);
+            dispositionManager.setDisposition(highIssue, draggedIssue, lowIssue, CookieHelper.getUsers(request), errors);
         } catch (SearchException e) {
             e.printStackTrace();
             throw new RuntimeException(e);
@@ -112,60 +104,19 @@ public class DispositionResource {
         return Response.ok().build();
     }
 
+
+    @Path("/cookie-user")
+    @GET
+    public Response getCookieUser(@Context HttpServletRequest request) {
+        User user = CookieHelper.getUserFromCookie(request);
+        String userName = (null == user) ? "" : user.getName();
+        return Response.ok(userName).build();
+    }
+
     private Response badRequest(final Collection<String> errors) {
         return Response.status(Response.Status.BAD_REQUEST).
                 type(MediaType.APPLICATION_JSON).
                 entity(new ErrorListEntity(Response.Status.BAD_REQUEST, errors)).
                 build();
-    }
-
-    /**
-     * Get last reindexed user from request cookie
-     *
-     * @param request - Request to get cookie from
-     * @return - found {@link User} or null
-     */
-    @Nullable
-    private User getUserFromCookie(HttpServletRequest request) {
-        String username = getConglomerateCookieValue(AJS_CONGLOMERATE_COOKIE, CONGLOMERATE_COOKIE_KEY, request);
-        return userUtil.getUser(username);
-    }
-
-    /**
-     * Get users for changing disposition
-     * @param request - Request to get cookie from
-     * @return - all users, fow which disposition change can be applied
-     */
-    @NotNull
-    private Collection<User> getUsers(HttpServletRequest request) {
-        Collection<User> users = new ArrayList<User>();
-        users.add(ComponentManager.getInstance().getJiraAuthenticationContext().getLoggedInUser());
-        users.add(getUserFromCookie(request));
-
-        return users;
-    }
-
-    /**
-     * Retrieve the value from a conglomerate Cookie from the request.
-     * <p>Why this not in {@link com.atlassian.jira.web.util.CookieUtils} ?</p>
-     *
-     * @param cookieName The name of the conglomerate cookie
-     * @param key        The key of the value
-     * @param request    Request to get cookie from
-     * @return the value (or the empty-string if it did not exist)
-     */
-    @NotNull
-    private String getConglomerateCookieValue(String cookieName, String key, HttpServletRequest request) {
-        Map<String, String> map = CookieUtils.parseConglomerateCookie(cookieName, request);
-        String value = map.get(key);
-        return value != null ? value : "";
-    }
-
-
-    @GET()
-    @Path("/check")
-    public Response parseJqlQuery(@Context HttpServletRequest request) {
-        String cookie = getConglomerateCookieValue(AJS_CONGLOMERATE_COOKIE, CONGLOMERATE_COOKIE_KEY, request);
-        return Response.ok(cookie).build();
     }
 }

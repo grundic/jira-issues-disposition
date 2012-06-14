@@ -9,7 +9,7 @@ import com.atlassian.plugin.webresource.WebResourceManager;
 import org.jetbrains.annotations.NotNull;
 import ru.mail.jira.plugins.disposition.manager.DispositionManager;
 import ru.mail.jira.plugins.disposition.manager.DispositionManagerImpl;
-import ru.mail.jira.plugins.disposition.rest.DispositionResource;
+import ru.mail.jira.plugins.disposition.web.CookieHelper;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -53,7 +53,7 @@ public class ResetIssuesDispositionAction extends JiraWebActionSupport {
         try {
             dispositionManager.resetDisposition(selectedUser, getStep(), errors);
             // save reindexed username in cookie to be able to sort issue for this user
-            setConglomerateCookieValue(DispositionResource.AJS_CONGLOMERATE_COOKIE, DispositionResource.CONGLOMERATE_COOKIE_KEY, selectedUser.getName());
+            setConglomerateCookieValue(CookieHelper.AJS_CONGLOMERATE_COOKIE, CookieHelper.CONGLOMERATE_COOKIE_KEY, selectedUser.getName());
         } catch (JqlParseException e) {
             e.printStackTrace();
             throw new RuntimeException(e);
@@ -62,8 +62,11 @@ public class ResetIssuesDispositionAction extends JiraWebActionSupport {
             throw new RuntimeException(e);
         }
 
-        if (errors.size() > 0) {
-            // TODO - add error handling
+        if (!errors.isEmpty()) {
+            for (String error : errors) {
+                addErrorMessage(error);
+            }
+            return ERROR;
         }
 
         try {
