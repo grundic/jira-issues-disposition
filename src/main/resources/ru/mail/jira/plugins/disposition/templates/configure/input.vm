@@ -1,0 +1,38 @@
+<html>
+<head>
+    <meta name="decorator" content="admin">
+    <title>${i18n.getText("ru.mail.jira.plugins.disposition.web.jql.title")}</title>
+</head>
+<body>
+<form id="disposition-configure-form" method="post" class="aui"
+      action="${req.contextPath}/secure/ConfigureJqlAction.jspa">
+    <div class="form-body">
+
+        <h2>${i18n.getText("ru.mail.jira.plugins.disposition.web.jql.title")}</h2>
+
+        #foreach($error in $errorMessages)<div class="aui-message error"><span class="error-icon"></span>$error</div>#end
+
+        <fieldset>
+            <div class="field-group">
+                <label for="jql">${i18n.getText("ru.mail.jira.plugins.jql")}</label>
+                <input id="jql" name="jql" #if ($jql) value="$jql" #end type="text" class="text long-field"/>
+                <div class="description">${i18n.getText("ru.mail.jira.plugins.disposition.web.jql.description")}</div>
+            </div>
+        </fieldset>
+
+    </div>
+
+    <div class="buttons-container form-footer">
+        <div class="buttons">
+            <input class="button submit" type="submit" value="${i18n.getText('common.words.save')}" >
+            <a accesskey="`" class="cancel" href="#" id="cancel-button" title="${i18n.getText('common.words.cancel')}">${i18n.getText("common.words.cancel")}</a>
+        </div>
+    </div>
+
+
+    <input type="hidden" name="customFieldId" value="$action.getCustomField().getIdAsLong()">
+    <input type="hidden" name="fieldConfigId" value="$fieldConfigId">
+
+</form>
+</body>
+</html>

@@ -70,9 +70,10 @@ public interface DispositionManager {
     /**
      * Get query for issue navigator
      *
+     * @param jql  - jql query to redirect
      * @param user - searcher
      * @return - query for web request
      * @throws JqlParseException
      */
-    public String getQueryLink(@NotNull User user) throws JqlParseException;
+    public String getQueryLink(@NotNull String jql, @NotNull User user) throws JqlParseException;
 }

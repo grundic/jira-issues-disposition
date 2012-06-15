@@ -4,6 +4,12 @@ import com.atlassian.jira.issue.customfields.converters.DoubleConverter;
 import com.atlassian.jira.issue.customfields.impl.NumberCFType;
 import com.atlassian.jira.issue.customfields.manager.GenericConfigManager;
 import com.atlassian.jira.issue.customfields.persistence.CustomFieldValuePersister;
+import com.atlassian.jira.issue.fields.config.FieldConfigItemType;
+import org.jetbrains.annotations.NotNull;
+import ru.mail.jira.plugins.disposition.config.IssueDispositionConfiguration;
+import ru.mail.jira.plugins.disposition.manager.DispositionConfigurationManager;
+
+import java.util.List;
 
 /**
  * User: g.chernyshev
@@ -25,8 +31,19 @@ import com.atlassian.jira.issue.customfields.persistence.CustomFieldValuePersist
  */
 public class IssueDispositionCF extends NumberCFType {
 
-    public IssueDispositionCF(CustomFieldValuePersister customFieldValuePersister, DoubleConverter doubleConverter, GenericConfigManager genericConfigManager) {
+    @NotNull
+    private final DispositionConfigurationManager dispositionConfigurationManager;
+
+    public IssueDispositionCF(CustomFieldValuePersister customFieldValuePersister, DoubleConverter doubleConverter, GenericConfigManager genericConfigManager, @NotNull DispositionConfigurationManager dispositionConfigurationManager) {
         super(customFieldValuePersister, doubleConverter, genericConfigManager);
+        this.dispositionConfigurationManager = dispositionConfigurationManager;
+    }
+
+    @Override
+    public List<FieldConfigItemType> getConfigurationItemTypes() {
+        final List<FieldConfigItemType> configurationItemTypes = super.getConfigurationItemTypes();
+        configurationItemTypes.add(new IssueDispositionConfiguration(dispositionConfigurationManager));
+        return configurationItemTypes;
     }
 }
 

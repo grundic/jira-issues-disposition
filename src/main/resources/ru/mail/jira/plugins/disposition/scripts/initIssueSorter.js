@@ -36,7 +36,7 @@ AJS.toInit(function() {
                         AJS.$(that).sortable('cancel');
 
                         var data = JSON.parse(smartAjaxResult.data);
-                        JIRA.Messages.showMsg(data.message, {'type':JIRA.Messages.Types.ERROR});
+                        JIRA.Messages.showErrorMsg(data.message);
                     }
                 }
             });

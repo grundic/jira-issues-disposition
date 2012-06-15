@@ -37,6 +37,18 @@
     </customfield-searcher>
 
 
+    <!-- Web action for configuring JQL query -->
+    <webwork1 key="configure-disposition-jql-action" name="Configure disposition JQL query Action" class="java.lang.Object">
+        <actions>
+            <action name="ru.mail.jira.plugins.disposition.web.action.ConfigureJqlAction"
+                    alias="ConfigureJqlAction">
+                <view name="input">/ru/mail/jira/plugins/disposition/templates/configure/input.vm</view>
+                <view name="error">/ru/mail/jira/plugins/disposition/templates/configure/input.vm</view>
+            </action>
+        </actions>
+    </webwork1>
+
+
     <!-- Web stuff for resetting disposition of issues -->
     <web-section key="reset-issues-disposition-section" name="Reset issues disposition" location="find_link" system="true" weight="90"/>
 
@@ -63,6 +75,7 @@
         <resource type="download" name="initUserPicker.js" location="/ru/mail/jira/plugins/disposition/scripts/initUserPicker.js"/>
     </web-resource>
 
+
     <!-- Web stuff for changing issue disposition -->
     <web-item key="change-issue-disposition"
               name="Change disposition of issue"
@@ -80,7 +93,6 @@
         <condition class="com.atlassian.jira.plugin.webfragment.conditions.IsIssueEditableCondition"/>
     </web-item>
 
-
     <webwork1 key="change-issue-disposition-action" name="Change issue disposition Action" class="java.lang.Object">
         <actions>
             <action name="ru.mail.jira.plugins.disposition.web.action.ChangeIssueDispositionAction"
@@ -92,9 +104,13 @@
     </webwork1>
 
     <web-resource key="init-disposition-change-dialog" name="init-disposition-change-dialog">
-        <resource type="download" name="initChangeDialog.js" location="/ru/mail/jira/plugins/disposition/scripts/initChangeDialog.js"/>
+        <transformation extension="js">
+            <transformer key="jsI18n"/>
+        </transformation>
         <context>atl.general</context>
+        <resource type="download" name="initChangeDialog.js" location="/ru/mail/jira/plugins/disposition/scripts/initChangeDialog.js"/>
     </web-resource>
+
 
     <!-- Javascript Web Resources for Issue Disposition -->
     <web-resource key="issue-disposition-context" name="issue-disposition-context">
@@ -110,6 +126,9 @@
     <!-- Internal component imports -->
     <component key="issue-disposition-manager" name="issue-disposition-manager"
                class="ru.mail.jira.plugins.disposition.manager.DispositionManagerImpl"/>
+
+    <component key="disposition-configuration-manager" name="disposition-configuration-manager"
+               class="ru.mail.jira.plugins.disposition.manager.DispositionConfigurationManagerImpl"/>
 
     <!-- Rest resource -->
     <rest key="issue-disposition-rest" path="/issue-disposition" version="1.0"

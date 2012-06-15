@@ -15,7 +15,7 @@
         <fieldset>
             <div class="field-group">
                 <label for="disposition">${i18n.getText("ru.mail.jira.plugins.disposition")}</label>
-                <input id="disposition" name="disposition" value="$disposition" type="text" class="text"/>
+                <input id="disposition" name="disposition" #if ($disposition) value="$disposition" #end type="text" class="text"/>
 
                 <div class="description">${i18n.getText("ru.mail.jira.plugins.disposition.web.change.disposition.description")}</div>
             </div>

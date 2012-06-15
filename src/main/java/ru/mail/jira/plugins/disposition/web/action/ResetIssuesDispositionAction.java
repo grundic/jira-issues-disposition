@@ -69,12 +69,7 @@ public class ResetIssuesDispositionAction extends JiraWebActionSupport {
             return ERROR;
         }
 
-        try {
-            return getRedirect(dispositionManager.getQueryLink(selectedUser));
-        } catch (JqlParseException e) {
-            e.printStackTrace();
-            throw new RuntimeException(e);
-        }
+        return getRedirect("secure/IssueNavigator.jspa");
     }
 
 

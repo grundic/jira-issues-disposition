@@ -21,7 +21,6 @@ import com.atlassian.jira.util.I18nHelper;
 import com.atlassian.jira.util.ImportUtils;
 import com.atlassian.jira.web.bean.PagerFilter;
 import com.atlassian.query.Query;
-import com.atlassian.query.clause.Clause;
 import com.atlassian.query.order.SortOrder;
 import org.apache.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
@@ -40,8 +39,6 @@ import java.util.regex.Pattern;
  * Time: 7:40 PM
  */
 public class DispositionManagerImpl implements DispositionManager {
-
-    public static final String JQL_QUERY = "assignee = currentUser() and resolution = Unresolved ORDER BY \"Order\", key";
 
     private static final Double DISPOSITION_START = 0.0;
     public static final Double DISPOSITION_STEP = 50.0;
@@ -69,14 +66,18 @@ public class DispositionManagerImpl implements DispositionManager {
     @NotNull
     private final I18nHelper.BeanFactory i18nFactory;
 
+    @NotNull
+    private final DispositionConfigurationManager dispositionConfigurationManager;
 
-    public DispositionManagerImpl(@NotNull JqlQueryParser jqlQueryParser, @NotNull SearchProvider searchProvider, @NotNull SearchService searchService, @NotNull CustomFieldManager customFieldManager, @NotNull JiraBaseUrls jiraBaseUrls, @NotNull I18nHelper.BeanFactory i18nFactory) {
+
+    public DispositionManagerImpl(@NotNull JqlQueryParser jqlQueryParser, @NotNull SearchProvider searchProvider, @NotNull SearchService searchService, @NotNull CustomFieldManager customFieldManager, @NotNull JiraBaseUrls jiraBaseUrls, @NotNull I18nHelper.BeanFactory i18nFactory, @NotNull DispositionConfigurationManager dispositionConfigurationManager) {
         this.jqlQueryParser = jqlQueryParser;
         this.searchProvider = searchProvider;
         this.searchService = searchService;
         this.customFieldManager = customFieldManager;
         this.jiraBaseUrls = jiraBaseUrls;
         this.i18nFactory = i18nFactory;
+        this.dispositionConfigurationManager = dispositionConfigurationManager;
     }
 
     @Override
@@ -85,28 +86,35 @@ public class DispositionManagerImpl implements DispositionManager {
         User user = ComponentManager.getInstance().getJiraAuthenticationContext().getLoggedInUser();
         final I18nHelper i18n = i18nFactory.getInstance(user);
 
-        String jql = replaceCurrentUser(JQL_QUERY, userToBeReset.getName());
-
-        CustomField field = getCustomFieldByIssueAndType(IssueDispositionCF.class, null);
-        if (null == field) {
+        Collection<CustomField> fields = getCustomFieldsByIssueAndType(IssueDispositionCF.class, null);
+        if (fields.isEmpty()) {
             errors.add(i18n.getText("ru.mail.jira.plugins.disposition.manager.error.custom.field.not.found"));
             return;
         }
 
+        // iterate over all matched custom fields and reset order for selected user
+        for (CustomField field : fields) {
+            String jql = replaceCurrentUser(dispositionConfigurationManager.getJqlQuery(field), userToBeReset.getName());
+            if (null == jql || jql.isEmpty()) {
+                errors.add(i18n.getText("ru.mail.jira.plugins.disposition.manager.error.jql.empty", field.getName()));
+                return;
+            }
 
-        Query query = jqlQueryParser.parseQuery(jql);
-        SearchResults searchResults = searchProvider.search(query, user, PagerFilter.getUnlimitedFilter());
-        if (null == searchResults) {
-            errors.add(i18n.getText("ru.mail.jira.plugins.disposition.manager.error.search.null"));
-            return;
-        }
+            Query query = jqlQueryParser.parseQuery(jql);
+            SearchResults searchResults = searchProvider.search(query, user, PagerFilter.getUnlimitedFilter());
+            if (null == searchResults) {
+                errors.add(i18n.getText("ru.mail.jira.plugins.disposition.manager.error.search.null"));
+                return;
+            }
 
-        Double disposition = DISPOSITION_START;
-        for (Issue issue : searchResults.getIssues()) {
-            Double prevValue = (Double) issue.getCustomFieldValue(field);
+            Double disposition = DISPOSITION_START;
+            for (Issue issue : searchResults.getIssues()) {
+                Double prevValue = (Double) issue.getCustomFieldValue(field);
 
-            disposition += step;
-            updateValue(field, prevValue, disposition, issue, true);
+                disposition += step;
+                updateValue(field, prevValue, disposition, issue, true);
+            }
+
         }
     }
 
@@ -117,15 +125,15 @@ public class DispositionManagerImpl implements DispositionManager {
 
         final I18nHelper i18n = i18nFactory.getInstance(currentUser);
 
-        final User user = getSuitableUser(issue, users);
-        if (null == user) {
-            errors.add(i18n.getText("ru.mail.jira.plugins.disposition.manager.error.issue.not.in.jql.for.user", issue.getKey()));
-            return;
-        }
-
         CustomField field = getCustomFieldByIssueAndType(IssueDispositionCF.class, issue);
         if (null == field) {
             errors.add(i18n.getText("ru.mail.jira.plugins.disposition.manager.error.custom.field.for.issue.not.found", issue.getKey()));
+            return;
+        }
+
+        final User user = getSuitableUser(issue, field, users);
+        if (null == user) {
+            errors.add(i18n.getText("ru.mail.jira.plugins.disposition.manager.error.issue.not.in.jql.for.user", issue.getKey()));
             return;
         }
 
@@ -136,16 +144,21 @@ public class DispositionManagerImpl implements DispositionManager {
             return;
         }
 
+        String jql = replaceCurrentUser(dispositionConfigurationManager.getJqlQuery(field), user.getName());
+        if (null == jql || jql.isEmpty()) {
+            errors.add(i18n.getText("ru.mail.jira.plugins.disposition.manager.error.jql.empty", field.getName()));
+            return;
+        }
 
         // if issue in not in configured Jql - return
-        if (issueNotInJQL(JQL_QUERY, issue, user)) {
+        if (issueNotInJQL(jql, issue, user)) {
             errors.add(i18n.getText("ru.mail.jira.plugins.disposition.manager.error.issue.not.in.jql", issue.getKey()));
             return;
         }
 
         // if some issue in query have the same disposition value - we have to shift other issues
-        if (isDispositionInJQL(JQL_QUERY, value, field, user)) {
-            shiftIssuesDown(JQL_QUERY, value, field, user, issue);
+        if (isDispositionInJQL(jql, value, field, user)) {
+            shiftIssuesDown(jql, value, field, user, issue);
         }
 
         // set value of our issue
@@ -159,16 +172,6 @@ public class DispositionManagerImpl implements DispositionManager {
 
         final I18nHelper i18n = i18nFactory.getInstance(currentUser);
 
-        final User user = getSuitableUser(dragged, users);
-        if (null == user) {
-            errors.add(i18n.getText("ru.mail.jira.plugins.disposition.manager.error.issue.not.in.jql.for.user", dragged.getKey()));
-            return;
-        }
-
-        if (!validate(high, dragged, low, errors, user, i18n)) {
-            return;
-        }
-
         // assume, that all issues have the same custom field
         @Nullable
         CustomField field = getCustomFieldByIssueAndType(IssueDispositionCF.class, dragged);
@@ -177,6 +180,21 @@ public class DispositionManagerImpl implements DispositionManager {
             return;
         }
 
+        final User user = getSuitableUser(dragged, field, users);
+        if (null == user) {
+            errors.add(i18n.getText("ru.mail.jira.plugins.disposition.manager.error.issue.not.in.jql.for.user", dragged.getKey()));
+            return;
+        }
+
+        String jql = replaceCurrentUser(dispositionConfigurationManager.getJqlQuery(field), user.getName());
+        if (null == jql || jql.isEmpty()) {
+            errors.add(i18n.getText("ru.mail.jira.plugins.disposition.manager.error.jql.empty", field.getName()));
+            return;
+        }
+
+        if (!validate(jql, high, dragged, low, errors, user, i18n)) {
+            return;
+        }
 
         // get values from issues
         Double highValue = (high != null) ? (Double) high.getCustomFieldValue(field) : null;
@@ -195,12 +213,12 @@ public class DispositionManagerImpl implements DispositionManager {
         if (null != highValue && null != lowValue) {
 
             if (lowValue <= highValue) {
-                errors.add(i18n.getText("ru.mail.jira.plugins.disposition.manager.error.incorrect.order", getQueryLink(user)));
+                errors.add(i18n.getText("ru.mail.jira.plugins.disposition.manager.error.incorrect.order", getQueryLink(jql, user)));
                 return;
             }
 
-            if (!areIssuesSideBySide(JQL_QUERY, highValue, lowValue, field, user)) {
-                errors.add(i18n.getText("ru.mail.jira.plugins.disposition.manager.error.incorrect.order", getQueryLink(user)));
+            if (!areIssuesSideBySide(jql, highValue, lowValue, field, user)) {
+                errors.add(i18n.getText("ru.mail.jira.plugins.disposition.manager.error.incorrect.order", getQueryLink(jql, user)));
                 return;
             }
 
@@ -214,16 +232,16 @@ public class DispositionManagerImpl implements DispositionManager {
                   then try to get average between min disposition and lowValue. If it's not possible - shift issues down.
                 */
 
-                if (!isMinValue(JQL_QUERY, lowValue, field, user)) {
+                if (!isMinValue(jql, lowValue, field, user)) {
                     // If it's lowest value in view, but not in query - error
-                    errors.add(i18n.getText("ru.mail.jira.plugins.disposition.manager.error.incorrect.order", getQueryLink(user)));
+                    errors.add(i18n.getText("ru.mail.jira.plugins.disposition.manager.error.incorrect.order", getQueryLink(jql, user)));
                     return;
                 }
 
                 Long lowAverage = getAverage(0.0, lowValue);
 
                 if (null == lowAverage) {
-                    shiftIssuesDown(JQL_QUERY, lowValue, field, user, dragged);
+                    shiftIssuesDown(jql, lowValue, field, user, dragged);
                     updateValue(field, draggedValue, lowValue, dragged, true);
                 } else {
                     updateValue(field, draggedValue, (double) lowAverage, dragged, true);
@@ -235,14 +253,14 @@ public class DispositionManagerImpl implements DispositionManager {
                          Issue is dragged from top to bottom.
                          Shift other issues up.
                         */
-                        shiftIssuesUp(JQL_QUERY, highValue, field, user, dragged);
+                        shiftIssuesUp(jql, highValue, field, user, dragged);
                         updateValue(field, draggedValue, highValue, dragged, true);
                     } else {
                         /*
                           Issue is dragged between two issues with initialized values.
                           Shift down in this case.
                         */
-                        shiftIssuesDown(JQL_QUERY, lowValue, field, user, dragged);
+                        shiftIssuesDown(jql, lowValue, field, user, dragged);
                         updateValue(field, draggedValue, lowValue, dragged, true);
                     }
                 } else {
@@ -251,9 +269,9 @@ public class DispositionManagerImpl implements DispositionManager {
                      Add default step value to high issue's value.
                     */
 
-                    if (!isMaxValue(JQL_QUERY, highValue, field, user)) {
+                    if (!isMaxValue(jql, highValue, field, user)) {
                         // If it's highest value in view, but not in query - error
-                        errors.add(i18n.getText("ru.mail.jira.plugins.disposition.manager.error.incorrect.order", getQueryLink(user)));
+                        errors.add(i18n.getText("ru.mail.jira.plugins.disposition.manager.error.incorrect.order", getQueryLink(jql, user)));
                         return;
                     }
                     updateValue(field, draggedValue, highValue + DISPOSITION_STEP, dragged, true);
@@ -281,8 +299,7 @@ public class DispositionManagerImpl implements DispositionManager {
     }
 
     @Override
-    public String getQueryLink(@NotNull User user) throws JqlParseException {
-        String jql = replaceCurrentUser(JQL_QUERY, user.getName());
+    public String getQueryLink(@NotNull String jql, @NotNull User user) throws JqlParseException {
         Query query = jqlQueryParser.parseQuery(jql);
         return jiraBaseUrls.baseUrl() + "/secure/IssueNavigator.jspa?reset=true" + searchService.getQueryString(user, query);
     }
@@ -294,15 +311,21 @@ public class DispositionManagerImpl implements DispositionManager {
      * Search suitable user for configured Jql query
      *
      * @param issue - current dragged issue
-     * @param users - list of users to choose from
-     * @return - suitable user
+     * @param field - configured disposition custom field
+     * @param users - list of users to choose from  @return - suitable user
      * @throws SearchException
      * @throws JqlParseException
      */
     @Nullable
-    private User getSuitableUser(@NotNull Issue issue, @NotNull Collection<User> users) throws SearchException, JqlParseException {
+    private User getSuitableUser(@NotNull Issue issue, @NotNull CustomField field, @NotNull Collection<User> users) throws SearchException, JqlParseException {
+
+        String jql = dispositionConfigurationManager.getJqlQuery(field);
+        if (null == jql) {
+            return null;
+        }
+
         for (User user : users) {
-            if (!issueNotInJQL(JQL_QUERY, issue, user)) {
+            if (!issueNotInJQL(jql, issue, user)) {
                 return user;
             }
         }
@@ -324,23 +347,24 @@ public class DispositionManagerImpl implements DispositionManager {
      * @throws SearchException
      * @throws JqlParseException
      */
-    private boolean validate(@Nullable Issue high, @NotNull Issue dragged, @Nullable Issue low, @NotNull Collection<String> errors, @NotNull final User user, @NotNull final I18nHelper i18n) throws SearchException, JqlParseException {
+    private boolean validate(@NotNull String jql, @Nullable Issue high, @NotNull Issue dragged, @Nullable Issue low, @NotNull Collection<String> errors, @NotNull final User user, @NotNull final I18nHelper i18n) throws SearchException, JqlParseException {
+
         if (null == high && null == low) {
             errors.add(i18n.getText("ru.mail.jira.plugins.disposition.manager.error.high.and.low.null"));
             return false;
         }
 
-        if (null != high && issueNotInJQL(JQL_QUERY, high, user)) {
+        if (null != high && issueNotInJQL(jql, high, user)) {
             errors.add(i18n.getText("ru.mail.jira.plugins.disposition.manager.error.issue.not.in.jql", high.getKey()));
             return false;
         }
 
-        if (null != low && issueNotInJQL(JQL_QUERY, low, user)) {
+        if (null != low && issueNotInJQL(jql, low, user)) {
             errors.add(i18n.getText("ru.mail.jira.plugins.disposition.manager.error.issue.not.in.jql", low.getKey()));
             return false;
         }
 
-        if (issueNotInJQL(JQL_QUERY, dragged, user)) {
+        if (issueNotInJQL(jql, dragged, user)) {
             errors.add(i18n.getText("ru.mail.jira.plugins.disposition.manager.error.issue.not.in.jql", dragged.getKey()));
             return false;
         }
@@ -454,7 +478,6 @@ public class DispositionManagerImpl implements DispositionManager {
      * @return - collection of founded fields
      */
     @NotNull
-    @SuppressWarnings("unused")
     private Collection<CustomField> getCustomFieldsByIssueAndType(@NotNull Class<?> type, @Nullable Issue issue) {
         Set<CustomField> result = new TreeSet<CustomField>();
         Collection<CustomField> fields = (null == issue) ?
@@ -609,29 +632,6 @@ public class DispositionManagerImpl implements DispositionManager {
         }
     }
 
-    /**
-     * Recursively traverse all clauses to get list of them
-     *
-     * @param clauses - root clause
-     * @return - collection of clauses
-     */
-    @NotNull
-    @SuppressWarnings("unused")
-    private Collection<String> clauseRecursion(@NotNull Collection<Clause> clauses) {
-
-        Collection<String> fields = new LinkedHashSet<String>();
-
-        for (Clause clause : clauses) {
-            if (clause.getClauses() != null && clause.getClauses().size() > 0) {
-                fields.addAll(clauseRecursion(clause.getClauses()));
-            } else {
-                fields.add(clause.getName());
-            }
-        }
-
-        return fields;
-    }
-
 
     /**
      * Replace all occurrences of 'currentUser()' to user
@@ -640,8 +640,11 @@ public class DispositionManagerImpl implements DispositionManager {
      * @param user - substitution value
      * @return - jql query (without validation)
      */
-    @NotNull
-    private String replaceCurrentUser(String jql, String user) {
+    @Nullable
+    private String replaceCurrentUser(@Nullable String jql, @Nullable String user) {
+        if (null == jql || null == user) {
+            return null;
+        }
         return jql.replaceAll(Pattern.quote("currentUser()"), user);
     }
 }
