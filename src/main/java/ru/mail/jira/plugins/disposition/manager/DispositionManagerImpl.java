@@ -166,7 +166,7 @@ public class DispositionManagerImpl implements DispositionManager {
     }
 
     @Override
-    public void setDisposition(@Nullable Issue high, @NotNull Issue dragged, @Nullable Issue low, @NotNull Collection<User> users, @NotNull Collection<String> errors) throws SearchException, JqlParseException {
+    public void setDisposition(@Nullable Issue high, @NotNull Issue dragged, @Nullable Issue low, @NotNull Collection<User> users, @NotNull Collection<String> errors, @Nullable Integer index) throws SearchException, JqlParseException {
 
         User currentUser = ComponentManager.getInstance().getJiraAuthenticationContext().getLoggedInUser();
 
@@ -193,6 +193,11 @@ public class DispositionManagerImpl implements DispositionManager {
         }
 
         if (!validate(jql, high, dragged, low, errors, user, i18n)) {
+            return;
+        }
+
+        if (null == index) {
+            errors.add(i18n.getText("ru.mail.jira.plugins.disposition.manager.error.index.null"));
             return;
         }
 
@@ -232,7 +237,7 @@ public class DispositionManagerImpl implements DispositionManager {
                   then try to get average between min disposition and lowValue. If it's not possible - shift issues down.
                 */
 
-                if (!isMinValue(jql, lowValue, field, user)) {
+                if (index == 0 && !isMinValue(jql, lowValue, field, user)) {
                     // If it's lowest value in view, but not in query - error
                     errors.add(i18n.getText("ru.mail.jira.plugins.disposition.manager.error.incorrect.order", getQueryLink(jql, user)));
                     return;
@@ -240,7 +245,7 @@ public class DispositionManagerImpl implements DispositionManager {
 
                 Long lowAverage = getAverage(0.0, lowValue);
 
-                if (null == lowAverage) {
+                if (null == lowAverage || index != 0) {
                     shiftIssuesDown(jql, lowValue, field, user, dragged);
                     updateValue(field, draggedValue, lowValue, dragged, true);
                 } else {

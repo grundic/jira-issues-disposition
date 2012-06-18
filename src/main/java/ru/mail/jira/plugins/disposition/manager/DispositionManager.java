@@ -53,8 +53,9 @@ public interface DispositionManager {
      * @param low     - issue below current (should have lower order)
      * @param users   - users whom issues can be reordered
      * @param errors  - container for errors
+     * @param index   - drag destination issue row index
      */
-    public void setDisposition(@Nullable Issue high, @NotNull Issue dragged, @Nullable Issue low, @NotNull Collection<User> users, @NotNull Collection<String> errors) throws SearchException, JqlParseException;
+    public void setDisposition(@Nullable Issue high, @NotNull Issue dragged, @Nullable Issue low, @NotNull Collection<User> users, @NotNull Collection<String> errors, @Nullable Integer index) throws SearchException, JqlParseException;
 
 
     /**

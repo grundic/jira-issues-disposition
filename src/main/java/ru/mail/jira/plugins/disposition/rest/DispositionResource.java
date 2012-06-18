@@ -79,6 +79,7 @@ public class DispositionResource {
     public Response setDisposition(@Nullable @QueryParam("high") final String high,
                                    @Nullable @QueryParam("dragged") final String dragged,
                                    @Nullable @QueryParam("low") final String low,
+                                   @Nullable @QueryParam("index") final Integer index,
                                    @Context HttpServletRequest request) {
 
         Issue highIssue = issueManager.getIssueObject(high);
@@ -88,7 +89,7 @@ public class DispositionResource {
         Collection<String> errors = new ArrayList<String>();
 
         try {
-            dispositionManager.setDisposition(highIssue, draggedIssue, lowIssue, CookieHelper.getUsers(request), errors);
+            dispositionManager.setDisposition(highIssue, draggedIssue, lowIssue, CookieHelper.getUsers(request), errors, index);
         } catch (SearchException e) {
             e.printStackTrace();
             throw new RuntimeException(e);

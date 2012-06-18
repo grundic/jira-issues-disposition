@@ -24,7 +24,12 @@ AJS.toInit(function() {
             var dragged = AJS.$(ui.item).data('issuekey');
             var low = AJS.$(ui.item).next().data('issuekey') || '';
 
-            var params = AJS.template("high={high}&dragged={dragged}&low={low}").fill({"high":high, "dragged":dragged, "low":low})
+            // get dragged destination row index
+            var rowIndex = AJS.$("#issuetable").find("tr.issuerow").index(AJS.$(ui.item));
+            var searchOffset = parseInt(AJS.$('.results-count-start').first().text(), 10) - 1;
+            var dispositionRowIndex = rowIndex + searchOffset;
+
+            var params = AJS.template("high={high}&dragged={dragged}&low={low}&index={index}").fill({"high":high, "dragged":dragged, "low":low, "index":dispositionRowIndex})
 
             JIRA.SmartAjax.makeRequest({
                 url: contextPath + "/rest/issue-disposition/1.0/disposition?" + params,
