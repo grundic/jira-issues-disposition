@@ -5,6 +5,14 @@
         <description>${project.description}</description>
         <version>${project.version}</version>
         <vendor name="${project.organization.name}" url="${project.organization.url}"/>
+
+        <param name="configure.url">/secure/admin/ViewCustomFields.jspa</param>
+
+        <param name="plugin-logo">/ru/mail/jira/plugins/disposition/images/order.png</param>
+        <param name="plugin-icon">/ru/mail/jira/plugins/disposition/images/order.png</param>
+
+        <param name="vendor-icon">/ru/mail/jira/plugins/disposition/images/mail-ru.gif</param>
+        <param name="vendor-logo">/ru/mail/jira/plugins/disposition/images/mail-ru.gif</param>
     </plugin-info>
 
 

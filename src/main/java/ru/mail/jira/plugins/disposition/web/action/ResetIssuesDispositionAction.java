@@ -1,9 +1,11 @@
 package ru.mail.jira.plugins.disposition.web.action;
 
 import com.atlassian.crowd.embedded.api.User;
+import com.atlassian.jira.ComponentManager;
 import com.atlassian.jira.issue.search.SearchException;
 import com.atlassian.jira.jql.parser.JqlParseException;
 import com.atlassian.jira.user.util.UserManager;
+import com.atlassian.jira.util.I18nHelper;
 import com.atlassian.jira.web.action.JiraWebActionSupport;
 import com.atlassian.plugin.webresource.WebResourceManager;
 import org.jetbrains.annotations.NotNull;
@@ -27,21 +29,35 @@ public class ResetIssuesDispositionAction extends JiraWebActionSupport {
     private final UserManager userManager;
     @NotNull
     private final DispositionManager dispositionManager;
+    @NotNull
+    private final I18nHelper.BeanFactory i18nFactory;
 
     private String assignee;
 
     private Double step = DispositionManagerImpl.DISPOSITION_STEP;
 
-    public ResetIssuesDispositionAction(@NotNull WebResourceManager webResourceManager, @NotNull UserManager userManager, @NotNull DispositionManager dispositionManager) {
+    private boolean skipReindex = false;
+
+    public ResetIssuesDispositionAction(@NotNull WebResourceManager webResourceManager, @NotNull UserManager userManager, @NotNull DispositionManager dispositionManager, @NotNull BeanFactory i18nFactory) {
         this.webResourceManager = webResourceManager;
         this.userManager = userManager;
         this.dispositionManager = dispositionManager;
+        this.i18nFactory = i18nFactory;
     }
 
     @Override
-    public String doDefault() throws Exception {
-        webResourceManager.requireResource("ru.mail.jira.plugins.jira-issues-disposition:init-user-picker");
-        return super.doDefault();
+    protected void doValidation() {
+        super.doValidation();
+
+        final I18nHelper i18n = i18nFactory.getInstance(getLoggedInUser());
+
+        if (null == ComponentManager.getInstance().getUserUtil().getUser(assignee)) {
+            addError("assignee", i18n.getText("ru.mail.jira.plugins.disposition.web.reindex.error.user.null", assignee));
+        }
+
+        if (step <= 0) {
+            addError("step", i18n.getText("ru.mail.jira.plugins.disposition.web.reindex.error.step.negative"));
+        }
     }
 
     @Override
@@ -51,7 +67,10 @@ public class ResetIssuesDispositionAction extends JiraWebActionSupport {
         Collection<String> errors = new ArrayList<String>();
 
         try {
-            dispositionManager.resetDisposition(selectedUser, getStep(), errors);
+            if (!skipReindex) {
+                dispositionManager.resetDisposition(selectedUser, getStep(), errors);
+            }
+
             // save reindexed username in cookie to be able to sort issue for this user
             setConglomerateCookieValue(CookieHelper.AJS_CONGLOMERATE_COOKIE, CookieHelper.CONGLOMERATE_COOKIE_KEY, selectedUser.getName());
         } catch (JqlParseException e) {
@@ -93,5 +112,21 @@ public class ResetIssuesDispositionAction extends JiraWebActionSupport {
     @SuppressWarnings("unused")
     public void setStep(Double step) {
         this.step = step;
+    }
+
+    @SuppressWarnings("unused")
+    public boolean getSkipReindex() {
+        return skipReindex;
+    }
+
+    @SuppressWarnings("unused")
+    public void setSkipReindex(boolean skipReindex) {
+        this.skipReindex = skipReindex;
+    }
+
+    @SuppressWarnings("unused")
+    @NotNull
+    public WebResourceManager getWebResourceManager() {
+        return webResourceManager;
     }
 }

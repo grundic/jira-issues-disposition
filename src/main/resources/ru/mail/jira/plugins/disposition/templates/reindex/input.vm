@@ -5,6 +5,8 @@
 </head>
 <body>
 
+$webResourceManager.requireResource("ru.mail.jira.plugins.jira-issues-disposition:init-user-picker")
+
 <form id="reindex-issues" class="aui" action="ResetIssuesDispositionAction.jspa" method="POST">
     <h2>${i18n.getText("ru.mail.jira.plugins.disposition.web.reindex.description")}</h2>
 
@@ -18,12 +20,21 @@
                             class="single-user-picker custom-assignee-picker" name="assignee" id="assignee" style="display: none;"
                             multiple="">
                         <optgroup data-weight="0" label="Suggestions" id="assignee-group-suggested">
-                            <option data-field-label="$remoteUser.name" data-field-text="$remoteUser.name" value="$remoteUser.name"
+                            #if ($assignee)
+                                <option data-field-label="$assignee" data-field-text="$assignee" value="$assignee"
+                                    selected="selected">$assignee
+                                </option>
+                            #else
+                                <option data-field-label="$remoteUser.name" data-field-text="$remoteUser.name" value="$remoteUser.name"
                                     selected="selected">$remoteUser.name
-                            </option>
+                                </option>
+                            #end
                         </optgroup>
                     </select>
                     <div class="description">${i18n.getText("ru.mail.jira.plugins.disposition.web.reindex.user.description")}</div>
+                    #if ($action.getErrors().get("assignee"))
+                        <div class="error">$textutils.htmlEncode($action.getErrors().get("assignee"))</div>
+                    #end
                 </td>
             </tr>
 
@@ -31,6 +42,23 @@
                 <td>
                     <input type="text" id="step" name="step" #if ($step) value="$step" #end />
                     <div class="description">${i18n.getText("ru.mail.jira.plugins.disposition.web.reindex.step.description")}</div>
+                    #if ($action.getErrors().get("step"))
+                        <div class="error">$textutils.htmlEncode($action.getErrors().get("step"))</div>
+                    #end
+                </td>
+            </tr>
+
+            <tr>
+                <td>
+                    <input
+                        type="checkbox"
+                        id="skipReindex"
+                        name="skipReindex"
+                        #if ($skipReindex) checked="true" #end
+                        value="true"
+                        onchange="AJS.$('#step').attr('disabled', this.checked)"
+                    />
+                    <div class="description">${i18n.getText("ru.mail.jira.plugins.disposition.web.reindex.skipReindex.description")}</div>
                 </td>
             </tr>
 
