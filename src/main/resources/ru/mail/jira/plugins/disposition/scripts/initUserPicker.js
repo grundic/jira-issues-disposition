@@ -19,9 +19,6 @@
 
     JIRA.bind(JIRA.Events.NEW_CONTENT_ADDED, function (e, context) {
         createAssigneePicker(context);
-        // TODO - can this be removed?
-        /* User options have to be generated automatically */
-        // selectCurrentUser(context);
     });
 
 })(AJS.$);

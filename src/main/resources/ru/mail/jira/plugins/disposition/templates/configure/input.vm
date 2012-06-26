@@ -4,6 +4,25 @@
     <title>${i18n.getText("ru.mail.jira.plugins.disposition.web.jql.title")}</title>
 </head>
 <body>
+
+<style type="text/css">
+    form.aui .field-value.success {color:#006400;}
+    form.aui .field-value {color:#640000;}
+</style>
+
+<script type="text/javascript">
+    (function($) {
+        JIRA.bind(JIRA.Events.NEW_CONTENT_ADDED, function (e, context) {
+            AJS.$('#typeId').change(function(){
+                AJS.$('#field-group-1, #field-group-2').hide();
+                AJS.$('#field-group-' + $(this).val() ).show();
+            });
+
+            AJS.$('#typeId').trigger('change');
+        });
+    })(AJS.$);
+</script>
+
 <form id="disposition-configure-form" method="post" class="aui"
       action="${req.contextPath}/secure/ConfigureJqlAction.jspa">
     <div class="form-body">
@@ -14,9 +33,52 @@
 
         <fieldset>
             <div class="field-group">
-                <label for="jql">${i18n.getText("ru.mail.jira.plugins.jql")}</label>
-                <input id="jql" name="jql" #if ($jql) value="$jql" #end type="text" class="text long-field"/>
+                <label for="typeId">${i18n.getText("ru.mail.jira.plugins.disposition.web.select.query")}</label>
+
+
+                <select id="typeId" name="typeId">
+                    #foreach ($option in $configType.entrySet())
+                        <option value="$option.key" #if ($option.key == $typeId) selected="true" #end>${i18n.getText("$option.value")}</option>
+                    #end
+                </select>
+
+                <div class="description">${i18n.getText("ru.mail.jira.plugins.disposition.web.select.query.description")}</div>
+                #if ($action.getErrors().get("typeId"))
+                    <div class="error">$textutils.htmlEncode($action.getErrors().get("typeId"))</div>
+                #end
+            </div>
+        </fieldset>
+
+        <fieldset>
+            <div class="field-group" id="field-group-1">
+                <label for="jql">${i18n.getText("ru.mail.jira.plugins.disposition.web.jql")}</label>
+                <input id="jql" name="jql" #if ($jql) value='$jql' #end type="text" class="text long-field"/>
                 <div class="description">${i18n.getText("ru.mail.jira.plugins.disposition.web.jql.description")}</div>
+                #if ($action.getErrors().get("jql"))
+                    <div class="error">$textutils.htmlEncode($action.getErrors().get("jql"))</div>
+                #end
+            </div>
+        </fieldset>
+
+        <fieldset>
+            <div class="field-group" id="field-group-2">
+                <label for="filter_filterId_name">${i18n.getText("ru.mail.jira.plugins.disposition.web.saved.filter")}</label>
+                #if ($filterId)
+                    <span id="filter_filterId_name" class="filterpicker-value-name field-value success" style="text-decoration: underline; cursor: pointer;">
+                        $filter.name
+                    </span>
+                    <input class="aui-field hidden" id="filter_filterId_id" name="filterId" value="$filterId"/>
+                #else
+                    <span id="filter_filterId_name" class="filterpicker-value-name field-value" style="text-decoration: underline; cursor: pointer;">
+                        ${i18n.getText("ru.mail.jira.plugins.disposition.web.filter.not.selected")}
+                    </span>
+                    <input class="aui-field hidden" id="filter_filterId_id" name="filterId"/>
+                #end
+
+                <div class="description">${i18n.getText("ru.mail.jira.plugins.disposition.web.saved.filter.description")}</div>
+                #if ($action.getErrors().get("filterId"))
+                    <div class="error">$textutils.htmlEncode($action.getErrors().get("filterId"))</div>
+                #end
             </div>
         </fieldset>
 

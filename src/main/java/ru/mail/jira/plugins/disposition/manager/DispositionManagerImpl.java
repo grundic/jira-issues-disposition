@@ -94,7 +94,7 @@ public class DispositionManagerImpl implements DispositionManager {
 
         // iterate over all matched custom fields and reset order for selected user
         for (CustomField field : fields) {
-            String jql = replaceCurrentUser(dispositionConfigurationManager.getJqlQuery(field), userToBeReset.getName());
+            String jql = replaceCurrentUser(dispositionConfigurationManager.getQuery(field), userToBeReset.getName());
             if (null == jql || jql.isEmpty()) {
                 errors.add(i18n.getText("ru.mail.jira.plugins.disposition.manager.error.jql.empty", field.getName()));
                 return;
@@ -144,7 +144,7 @@ public class DispositionManagerImpl implements DispositionManager {
             return;
         }
 
-        String jql = replaceCurrentUser(dispositionConfigurationManager.getJqlQuery(field), user.getName());
+        String jql = replaceCurrentUser(dispositionConfigurationManager.getQuery(field), user.getName());
         if (null == jql || jql.isEmpty()) {
             errors.add(i18n.getText("ru.mail.jira.plugins.disposition.manager.error.jql.empty", field.getName()));
             return;
@@ -186,7 +186,7 @@ public class DispositionManagerImpl implements DispositionManager {
             return;
         }
 
-        String jql = replaceCurrentUser(dispositionConfigurationManager.getJqlQuery(field), user.getName());
+        String jql = replaceCurrentUser(dispositionConfigurationManager.getQuery(field), user.getName());
         if (null == jql || jql.isEmpty()) {
             errors.add(i18n.getText("ru.mail.jira.plugins.disposition.manager.error.jql.empty", field.getName()));
             return;
@@ -324,7 +324,7 @@ public class DispositionManagerImpl implements DispositionManager {
     @Nullable
     private User getSuitableUser(@NotNull Issue issue, @NotNull CustomField field, @NotNull Collection<User> users) throws SearchException, JqlParseException {
 
-        String jql = dispositionConfigurationManager.getJqlQuery(field);
+        String jql = dispositionConfigurationManager.getQuery(field);
         if (null == jql) {
             return null;
         }

@@ -56,6 +56,10 @@
         </actions>
     </webwork1>
 
+    <web-resource key="init-filter-picker" name="init-filter-picker">
+        <resource type="download" name="initFilterPicker.js" location="/ru/mail/jira/plugins/disposition/scripts/initFilterPicker.js"/>
+    </web-resource>
+
 
     <!-- Web stuff for resetting disposition of issues -->
     <web-section key="reset-issues-disposition-section" name="Reset issues disposition" location="find_link" system="true" weight="90"/>

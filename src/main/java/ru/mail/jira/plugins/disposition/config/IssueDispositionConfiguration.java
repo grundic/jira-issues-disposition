@@ -34,7 +34,7 @@ public class IssueDispositionConfiguration implements FieldConfigItemType {
 
     @Override
     public String getViewHtml(FieldConfig fieldConfig, FieldLayoutItem fieldLayoutItem) {
-        return "<p>Configured Jql: <b>" + dispositionConfigurationManager.getJqlQuery(fieldConfig.getCustomField()) + "</b></p>";
+        return "<p>Configured Jql: <b>" + dispositionConfigurationManager.getQuery(fieldConfig.getCustomField()) + "</b></p>";
     }
 
     @Override
