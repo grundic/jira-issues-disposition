@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>ru.mail.jira.plugins</groupId>
     <artifactId>jira-issues-disposition</artifactId>
-    <version>1.2</version>
+    <version>1.3</version>
     <organization>
         <name>Grigory Chernyshev | Mail.ru</name>
         <url>http://www.mail.ru/</url>

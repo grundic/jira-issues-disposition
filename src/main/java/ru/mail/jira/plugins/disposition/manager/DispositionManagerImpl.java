@@ -650,6 +650,6 @@ public class DispositionManagerImpl implements DispositionManager {
         if (null == jql || null == user) {
             return null;
         }
-        return jql.replaceAll(Pattern.quote("currentUser()"), user);
+        return jql.replaceAll(Pattern.quote("currentUser()"), "\"" + user + "\"");
     }
 }
