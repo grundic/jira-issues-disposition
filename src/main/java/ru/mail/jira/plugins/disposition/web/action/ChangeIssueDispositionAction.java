@@ -29,7 +29,10 @@ public class ChangeIssueDispositionAction extends AbstractIssueSelectAction {
 
         CustomField field = dispositionManager.getCustomFieldByIssueAndType(IssueDispositionCF.class, getIssueObject());
         if (null != field) {
-            setDisposition((Double) getIssueObject().getCustomFieldValue(field));
+            Object value = getIssueObject().getCustomFieldValue(field);
+            if (null != value) {
+                setDisposition((Double) value);
+            }
         }
 
         return super.doDefault();
