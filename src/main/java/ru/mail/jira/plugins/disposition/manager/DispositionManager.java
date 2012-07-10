@@ -42,7 +42,7 @@ public interface DispositionManager {
      * @param users  - users whom issues can be reordered
      * @param errors - container for errors
      */
-    public boolean validateDisposition(@NotNull Issue issue, @NotNull Double value, @NotNull Collection<User> users, @NotNull Collection<String> errors);
+    public boolean validateDisposition(@NotNull Issue issue, @Nullable Double value, @NotNull Collection<User> users, @NotNull Collection<String> errors);
 
     /**
      * Set order for issue
