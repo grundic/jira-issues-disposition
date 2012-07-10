@@ -35,12 +35,21 @@ public interface DispositionManager {
 
 
     /**
-     * Set order for issue
+     * Check disposition value for issue
      *
      * @param issue  - issue to be ordered
      * @param value  - value for order
      * @param users  - users whom issues can be reordered
      * @param errors - container for errors
+     */
+    public boolean validateDisposition(@NotNull Issue issue, @NotNull Double value, @NotNull Collection<User> users, @NotNull Collection<String> errors);
+
+    /**
+     * Set order for issue
+     *
+     * @param issue - issue to be ordered
+     * @param value - value for order
+     * @param users - users whom issues can be reordered
      */
     public void setDisposition(@NotNull Issue issue, @NotNull Double value, @NotNull Collection<User> users, @NotNull Collection<String> errors) throws JqlParseException, SearchException;
 
@@ -57,6 +66,28 @@ public interface DispositionManager {
      */
     public void setDisposition(@Nullable Issue high, @NotNull Issue dragged, @Nullable Issue low, @NotNull Collection<User> users, @NotNull Collection<String> errors, @Nullable Integer index) throws SearchException, JqlParseException;
 
+
+    /**
+     * Shift issues down - change disposition in turn
+     *
+     * @param jql          - query, used to get list of issues
+     * @param startValue   - value of disposition field, from which we are starting shifting
+     * @param field        - disposition custom field
+     * @param user         - searcher
+     * @param currentIssue - issue, currently moved - should be skipped from query
+     */
+    public void shiftIssuesDown(@NotNull String jql, @NotNull Double startValue, @NotNull CustomField field, @NotNull User user, @NotNull Issue currentIssue);
+
+    /**
+     * Shift issues up - change disposition in turn
+     *
+     * @param jql          - query, used to get list of issues
+     * @param startValue   - value of disposition field, from which we are starting shifting
+     * @param field        - disposition custom field
+     * @param user         - searcher
+     * @param currentIssue - issue, currently moved - should be skipped from query
+     */
+    public void shiftIssuesUp(@NotNull String jql, @NotNull Double startValue, @NotNull CustomField field, @NotNull User user, @NotNull Issue currentIssue);
 
     /**
      * Get first custom field of specified type for issue
@@ -77,4 +108,14 @@ public interface DispositionManager {
      * @throws JqlParseException
      */
     public String getQueryLink(@NotNull String jql, @NotNull User user) throws JqlParseException;
+
+    /**
+     * Replace all occurrences of 'currentUser()' to user
+     *
+     * @param jql  - jql query
+     * @param user - substitution value
+     * @return - jql query (without validation)
+     */
+    @Nullable
+    public String replaceCurrentUser(@Nullable String jql, @Nullable String user);
 }

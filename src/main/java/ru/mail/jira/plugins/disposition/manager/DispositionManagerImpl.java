@@ -119,48 +119,79 @@ public class DispositionManagerImpl implements DispositionManager {
     }
 
     @Override
-    public void setDisposition(@NotNull Issue issue, @NotNull Double value, @NotNull Collection<User> users, @NotNull Collection<String> errors) throws JqlParseException, SearchException {
-
+    public boolean validateDisposition(@NotNull Issue issue, @Nullable Double value, @NotNull Collection<User> users, @NotNull Collection<String> errors) {
         User currentUser = ComponentManager.getInstance().getJiraAuthenticationContext().getLoggedInUser();
 
         final I18nHelper i18n = i18nFactory.getInstance(currentUser);
 
+        if (null == value) {
+            return true;
+        }
+
+        if (value <= 0) {
+            errors.add(i18n.getText("ru.mail.jira.plugins.disposition.manager.error.field.is.negative"));
+            return false;
+        }
+
         CustomField field = getCustomFieldByIssueAndType(IssueDispositionCF.class, issue);
         if (null == field) {
             errors.add(i18n.getText("ru.mail.jira.plugins.disposition.manager.error.custom.field.for.issue.not.found", issue.getKey()));
-            return;
+            return false;
         }
 
-        final User user = getSuitableUser(issue, field, users);
+        final User user;
+        try {
+            user = getSuitableUser(issue, field, users);
+        } catch (SearchException e) {
+            e.printStackTrace();
+            throw new RuntimeException(e.getMessage());
+        } catch (JqlParseException e) {
+            e.printStackTrace();
+            throw new RuntimeException(e.getMessage());
+        }
         if (null == user) {
             errors.add(i18n.getText("ru.mail.jira.plugins.disposition.manager.error.issue.not.in.jql.for.user", issue.getKey()));
-            return;
-        }
-
-        Double prevValue = (Double) issue.getCustomFieldValue(field);
-        // don't waste time for setting same value
-        if (null != prevValue && prevValue.equals(value)) {
-            errors.add(i18n.getText("ru.mail.jira.plugins.disposition.manager.error.old.equal.new"));
-            return;
+            return false;
         }
 
         String jql = replaceCurrentUser(dispositionConfigurationManager.getQuery(field), user.getName());
         if (null == jql || jql.isEmpty()) {
             errors.add(i18n.getText("ru.mail.jira.plugins.disposition.manager.error.jql.empty", field.getName()));
-            return;
+            return false;
         }
 
         // if issue in not in configured Jql - return
-        if (issueNotInJQL(jql, issue, user)) {
-            errors.add(i18n.getText("ru.mail.jira.plugins.disposition.manager.error.issue.not.in.jql", issue.getKey()));
+        try {
+            if (issueNotInJQL(jql, issue, user)) {
+                errors.add(i18n.getText("ru.mail.jira.plugins.disposition.manager.error.issue.not.in.jql", issue.getKey()));
+                return false;
+            }
+        } catch (JqlParseException e) {
+            e.printStackTrace();
+            throw new RuntimeException(e.getMessage());
+        } catch (SearchException e) {
+            e.printStackTrace();
+            throw new RuntimeException(e.getMessage());
+        }
+
+        return true;
+    }
+
+    @Override
+    public void setDisposition(@NotNull Issue issue, @NotNull Double value, @NotNull Collection<User> users, @NotNull Collection<String> errors) throws JqlParseException, SearchException {
+
+        if (!validateDisposition(issue, value, users, errors)) {
             return;
         }
 
-        // if some issue in query have the same disposition value - we have to shift other issues
-        if (isDispositionInJQL(jql, value, field, user)) {
-            shiftIssuesDown(jql, value, field, user, issue);
-        }
+        CustomField field = getCustomFieldByIssueAndType(IssueDispositionCF.class, issue);
+        assert null != field;
+        final User user = getSuitableUser(issue, field, users);
+        assert null != user;
+        String jql = replaceCurrentUser(dispositionConfigurationManager.getQuery(field), user.getName());
+        assert null != jql;
 
+        Double prevValue = (Double) issue.getCustomFieldValue(field);
         // set value of our issue
         updateValue(field, prevValue, value, issue, true);
     }
@@ -288,6 +319,29 @@ public class DispositionManagerImpl implements DispositionManager {
         }
     }
 
+    public void shiftIssuesDown(@NotNull String jql, @NotNull Double startValue, @NotNull CustomField field, @NotNull User user, @NotNull Issue currentIssue) {
+        try {
+            shiftIssues(jql, startValue, field, user, currentIssue, SHIFT_DOWN);
+        } catch (JqlParseException e) {
+            e.printStackTrace();
+            throw new RuntimeException(e.getMessage());
+        } catch (SearchException e) {
+            e.printStackTrace();
+            throw new RuntimeException(e.getMessage());
+        }
+    }
+
+    public void shiftIssuesUp(@NotNull String jql, @NotNull Double startValue, @NotNull CustomField field, @NotNull User user, @NotNull Issue currentIssue) {
+        try {
+            shiftIssues(jql, startValue, field, user, currentIssue, SHIFT_UP);
+        } catch (JqlParseException e) {
+            e.printStackTrace();
+            throw new RuntimeException(e.getMessage());
+        } catch (SearchException e) {
+            e.printStackTrace();
+            throw new RuntimeException(e.getMessage());
+        }
+    }
 
     @Nullable
     public CustomField getCustomFieldByIssueAndType(@NotNull Class<?> type, @Nullable Issue issue) {
@@ -307,6 +361,14 @@ public class DispositionManagerImpl implements DispositionManager {
     public String getQueryLink(@NotNull String jql, @NotNull User user) throws JqlParseException {
         Query query = jqlQueryParser.parseQuery(jql);
         return jiraBaseUrls.baseUrl() + "/secure/IssueNavigator.jspa?reset=true" + searchService.getQueryString(user, query);
+    }
+
+    @Nullable
+    public String replaceCurrentUser(@Nullable String jql, @Nullable String user) {
+        if (null == jql || null == user) {
+            return null;
+        }
+        return jql.replaceAll(Pattern.quote("currentUser()"), "\"" + user + "\"");
     }
 
 
@@ -412,7 +474,7 @@ public class DispositionManagerImpl implements DispositionManager {
         JqlQueryBuilder jqlQueryBuilder = JqlQueryBuilder.newBuilder(query);
         jqlQueryBuilder.where().and().customField(field.getIdAsLong()).eq(value.toString());
 
-        return searchProvider.searchCount(jqlQueryBuilder.buildQuery(), user) == 1;
+        return searchProvider.searchCount(jqlQueryBuilder.buildQuery(), user) >= 1;
     }
 
     /**
@@ -496,6 +558,7 @@ public class DispositionManagerImpl implements DispositionManager {
         return result;
     }
 
+
     /**
      * Shift issues up/down - change disposition in turn
      *
@@ -508,7 +571,15 @@ public class DispositionManagerImpl implements DispositionManager {
      * @throws JqlParseException
      * @throws SearchException
      */
-    private void shiftIssues(@NotNull String jql, @NotNull Double startValue, @NotNull CustomField field, @NotNull User user, @NotNull Issue currentIssue, int shiftValue) throws JqlParseException, SearchException {
+    private void shiftIssues(@NotNull String jql, @Nullable Double startValue, @NotNull CustomField field, @NotNull User user, @NotNull Issue currentIssue, int shiftValue) throws JqlParseException, SearchException {
+
+        if (null == startValue) {
+            return;
+        }
+
+        if (!isDispositionInJQL(jql, startValue, field, user)) {
+            return;
+        }
 
         Query query = jqlQueryParser.parseQuery(jql);
         JqlQueryBuilder jqlQueryBuilder = JqlQueryBuilder.newBuilder(query);
@@ -553,39 +624,12 @@ public class DispositionManagerImpl implements DispositionManager {
         // increase disposition of close (near) issues by 1
         for (Issue issue : issues) {
             Double disposition = (Double) issue.getCustomFieldValue(field);
+            DispositionUtils.setSkipShift(true);
             updateValue(field, disposition, disposition + shiftValue, issue, true);
+            DispositionUtils.setSkipShift(false);
         }
     }
 
-    /**
-     * Shift issues down - change disposition in turn
-     *
-     * @param jql          - query, used to get list of issues
-     * @param startValue   - value of disposition field, from which we are starting shifting
-     * @param field        - disposition custom field
-     * @param user         - searcher
-     * @param currentIssue - issue, currently moved - should be skipped from query
-     * @throws JqlParseException
-     * @throws SearchException
-     */
-    private void shiftIssuesDown(@NotNull String jql, @NotNull Double startValue, @NotNull CustomField field, @NotNull User user, @NotNull Issue currentIssue) throws JqlParseException, SearchException {
-        shiftIssues(jql, startValue, field, user, currentIssue, SHIFT_DOWN);
-    }
-
-    /**
-     * Shift issues up - change disposition in turn
-     *
-     * @param jql          - query, used to get list of issues
-     * @param startValue   - value of disposition field, from which we are starting shifting
-     * @param field        - disposition custom field
-     * @param user         - searcher
-     * @param currentIssue - issue, currently moved - should be skipped from query
-     * @throws JqlParseException
-     * @throws SearchException
-     */
-    private void shiftIssuesUp(@NotNull String jql, @NotNull Double startValue, @NotNull CustomField field, @NotNull User user, @NotNull Issue currentIssue) throws JqlParseException, SearchException {
-        shiftIssues(jql, startValue, field, user, currentIssue, SHIFT_UP);
-    }
 
     /**
      * Get average for two values
@@ -637,19 +681,4 @@ public class DispositionManagerImpl implements DispositionManager {
         }
     }
 
-
-    /**
-     * Replace all occurrences of 'currentUser()' to user
-     *
-     * @param jql  - jql query
-     * @param user - substitution value
-     * @return - jql query (without validation)
-     */
-    @Nullable
-    private String replaceCurrentUser(@Nullable String jql, @Nullable String user) {
-        if (null == jql || null == user) {
-            return null;
-        }
-        return jql.replaceAll(Pattern.quote("currentUser()"), "\"" + user + "\"");
-    }
 }

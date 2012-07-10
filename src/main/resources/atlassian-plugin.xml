@@ -23,6 +23,7 @@
         <description key="issue-disposition-field.description">The My Custom Field Plugin</description>
 
         <resource type="velocity" name="view" location="templates/plugins/fields/view/view-number.vm"/>
+        <resource type="velocity" name="edit" location="templates/plugins/fields/edit/edit-number.vm"/>
         <resource type="velocity" name="column-view" location="templates/plugins/fields/view/view-number.vm"/>
         <resource type="velocity" name="xml" location="templates/plugins/fields/xml/xml-number.vm"/>
     </customfield-type>

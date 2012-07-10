@@ -11,6 +11,7 @@ import com.atlassian.plugin.webresource.WebResourceManager;
 import org.jetbrains.annotations.NotNull;
 import ru.mail.jira.plugins.disposition.manager.DispositionManager;
 import ru.mail.jira.plugins.disposition.manager.DispositionManagerImpl;
+import ru.mail.jira.plugins.disposition.manager.DispositionUtils;
 import ru.mail.jira.plugins.disposition.web.CookieHelper;
 
 import java.util.ArrayList;
@@ -68,7 +69,9 @@ public class ResetIssuesDispositionAction extends JiraWebActionSupport {
 
         try {
             if (!skipReindex) {
+                DispositionUtils.setSkipShift(true);
                 dispositionManager.resetDisposition(selectedUser, getStep(), errors);
+                DispositionUtils.setSkipShift(false);
             }
 
             // save reindexed username in cookie to be able to sort issue for this user
