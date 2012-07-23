@@ -56,7 +56,7 @@ public class IssueDispositionCF extends NumberCFType {
 
         Double value = getValueFromCustomFieldParams(relevantParams);
 
-        if (value <= 0) {
+        if (null != value && value <= 0) {
             errorCollectionToAddTo.addError(config.getCustomField().getId(), getI18nBean().getText("ru.mail.jira.plugins.disposition.manager.error.field.is.negative"));
         }
     }
