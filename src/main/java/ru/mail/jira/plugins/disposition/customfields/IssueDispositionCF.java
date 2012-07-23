@@ -4,13 +4,14 @@ import com.atlassian.crowd.embedded.api.User;
 import com.atlassian.jira.ComponentManager;
 import com.atlassian.jira.issue.Issue;
 import com.atlassian.jira.issue.customfields.converters.DoubleConverter;
-import com.atlassian.jira.issue.customfields.impl.FieldValidationException;
 import com.atlassian.jira.issue.customfields.impl.NumberCFType;
 import com.atlassian.jira.issue.customfields.manager.GenericConfigManager;
 import com.atlassian.jira.issue.customfields.persistence.CustomFieldValuePersister;
+import com.atlassian.jira.issue.customfields.view.CustomFieldParams;
 import com.atlassian.jira.issue.fields.CustomField;
+import com.atlassian.jira.issue.fields.config.FieldConfig;
 import com.atlassian.jira.issue.fields.config.FieldConfigItemType;
-import com.google.common.collect.Lists;
+import com.atlassian.jira.util.ErrorCollection;
 import org.jetbrains.annotations.NotNull;
 import ru.mail.jira.plugins.disposition.config.IssueDispositionConfiguration;
 import ru.mail.jira.plugins.disposition.manager.DispositionConfigurationManager;
@@ -50,16 +51,20 @@ public class IssueDispositionCF extends NumberCFType {
     }
 
     @Override
+    public void validateFromParams(CustomFieldParams relevantParams, ErrorCollection errorCollectionToAddTo, FieldConfig config) {
+        super.validateFromParams(relevantParams, errorCollectionToAddTo, config);
+
+        Double value = getValueFromCustomFieldParams(relevantParams);
+
+        if (value <= 0) {
+            errorCollectionToAddTo.addError(config.getCustomField().getId(), getI18nBean().getText("ru.mail.jira.plugins.disposition.manager.error.field.is.negative"));
+        }
+    }
+
+    @Override
     public void updateValue(CustomField customField, Issue issue, Double value) {
 
         final User loggedInUser = ComponentManager.getInstance().getJiraAuthenticationContext().getLoggedInUser();
-        List<String> errors = Lists.newArrayList();
-
-
-        // we need an issue instance to validate, so we can't do
-        if (!dispositionManager.validateDisposition(issue, value, Lists.newArrayList(loggedInUser), errors)) {
-            throw new FieldValidationException(errors.toString());
-        }
 
         super.updateValue(customField, issue, value);
 
