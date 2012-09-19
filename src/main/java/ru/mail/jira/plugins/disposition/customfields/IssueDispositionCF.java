@@ -13,6 +13,7 @@ import com.atlassian.jira.issue.fields.config.FieldConfig;
 import com.atlassian.jira.issue.fields.config.FieldConfigItemType;
 import com.atlassian.jira.util.ErrorCollection;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import ru.mail.jira.plugins.disposition.config.IssueDispositionConfiguration;
 import ru.mail.jira.plugins.disposition.manager.DispositionConfigurationManager;
 import ru.mail.jira.plugins.disposition.manager.DispositionManager;
@@ -77,8 +78,11 @@ public class IssueDispositionCF extends NumberCFType {
     }
 
     @Override
-    public Double getValueFromIssue(CustomField field, Issue issue) {
+    public Double getValueFromIssue(@Nullable CustomField field, @Nullable Issue issue) {
         Double value = super.getValueFromIssue(field, issue);
+        if (null == field || null == issue) {
+            return null;
+        }
         if (null == value) {
             return getDefaultValue(field.getRelevantConfig(issue));
         }

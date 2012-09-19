@@ -21,8 +21,8 @@ $webResourceManager.requireResource("ru.mail.jira.plugins.jira-issues-dispositio
                             multiple="">
                         <optgroup data-weight="0" label="Suggestions" id="assignee-group-suggested">
                             #if ($assignee)
-                                <option data-field-label="$assignee" data-field-text="$assignee" value="$assignee"
-                                    selected="selected">$assignee
+                                <option data-field-label="$textutils.htmlEncode($assignee)" data-field-text="$textutils.htmlEncode($assignee)" value="$textutils.htmlEncode($assignee)"
+                                    selected="selected">$textutils.htmlEncode($assignee)
                                 </option>
                             #else
                                 <option data-field-label="$remoteUser.name" data-field-text="$remoteUser.name" value="$remoteUser.name"
